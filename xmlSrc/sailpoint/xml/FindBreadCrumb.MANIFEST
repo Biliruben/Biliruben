@@ -1,0 +1,3 @@
+Manifest-Version: 1.0
+Main-Class: sailpoint.xml.FindBreadCrumb
+Class-Path: lib/XmlAPI_1.1.jar XmlAPI_1.1.jar lib/GetOpts_1.2.jar GetOpts_1.2.jar lib/xercesImpl.jar xercesImpl.jar lib/serializer.jar serializer.jar lib/jdom.jar jdom.jar lib/resolver.jar resolver.jar

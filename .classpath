@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="csvSrc"/>
+	<classpathentry kind="src" path="filesApiSrc"/>
+	<classpathentry kind="src" path="gamesSrc"/>
+	<classpathentry kind="src" path="getOptSrc"/>
+	<classpathentry kind="src" path="threadRunnerSrc"/>
+	<classpathentry kind="src" path="xmlAPISrc"/>
+	<classpathentry kind="src" path="xmlSrc"/>
+	<classpathentry kind="src" path="gpsSrc"/>
+	<classpathentry kind="src" path="apiSrc"/>
+	<classpathentry kind="src" path="ninjaBotSrc"/>
+	<classpathentry kind="src" path="audioSrc"/>
+	<classpathentry kind="src" path="swathSrc"/>
+	<classpathentry kind="src" path="otherSrc"/>
+	<classpathentry kind="src" path="spWorkstationSrc"/>
+	<classpathentry kind="lib" path="C:/scripts/lib/jdom.jar"/>
+	<classpathentry kind="lib" path="C:/DropBox/JavaAPI/JacksonJson/jackson-all-1.9.9.jar"/>
+	<classpathentry kind="lib" path="C:/DropBox/JavaAPI/BeatIt/dist/lib/JLayer1.0.1.jar"/>
+	<classpathentry kind="lib" path="C:/DropBox/JavaAPI/BeatIt/dist/lib/mp3spi1.9.4.jar"/>
+	<classpathentry kind="lib" path="C:/DropBox/JavaAPI/BeatIt/dist/lib/tritonus_share.jar"/>
+	<classpathentry kind="lib" path="C:/DropBox/JavaAPI/JSoup/jsoup-1.9.1.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="C:/DropBox/JavaAPI/Jama/Jama-1.0.3.jar"/>
+	<classpathentry kind="lib" path="C:/scripts/lib/ThreadRunner_1.2.jar"/>
+	<classpathentry kind="lib" path="C:/DropBox/JavaAPI/ZipUtils/ziputils-1.3.jar"/>
+	<classpathentry kind="lib" path="C:/scripts/lib/commons-logging-1.2.jar"/>
+	<classpathentry kind="lib" path="C:/DropBox/JavaAPI/Apache BeanUtils/commons-beanutils-1.8.3/commons-beanutils-core-1.8.3.jar"/>
+	<classpathentry kind="lib" path="C:/test_installs/iiq8101/WEB-INF/lib/aspectjrt-1.9.4.jar"/>
+	<classpathentry kind="lib" path="C:/DropBox/JavaAPI/log4j-1.2.16/log4j-1.2.16.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/iiq-ssh-2"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
