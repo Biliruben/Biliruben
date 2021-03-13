@@ -1,7 +1,6 @@
 package sailpoint.launcher;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -29,12 +28,10 @@ import org.w3c.dom.Element;
 
 import com.biliruben.util.csv.CSVSource;
 import com.biliruben.util.csv.CSVSource.CSVType;
-
-import biliruben.threads.ThreadRunner;
-
 import com.biliruben.util.csv.CSVSourceImpl;
 
 import sailpoint.api.Bootstrapper;
+import sailpoint.api.Certificationer;
 import sailpoint.api.DatabaseVersionException;
 import sailpoint.api.IncrementalObjectIterator;
 import sailpoint.api.ManagedAttributer;
@@ -43,11 +40,16 @@ import sailpoint.api.PersistenceManager;
 import sailpoint.api.PersistenceManager.LockParameters;
 import sailpoint.api.SailPointContext;
 import sailpoint.api.SailPointFactory;
+import sailpoint.api.certification.CertificationActionDescriber;
+import sailpoint.api.certification.CertificationDecisioner;
+import sailpoint.api.certification.CertificationDecisioner.Decision;
+import sailpoint.api.Terminator;
 import sailpoint.object.Application;
 import sailpoint.object.AttributeDefinition;
 import sailpoint.object.Attributes;
 import sailpoint.object.Bundle;
 import sailpoint.object.Certification;
+import sailpoint.object.CertificationAction.Status;
 import sailpoint.object.CertificationEntity;
 import sailpoint.object.CertificationItem;
 import sailpoint.object.Filter;
@@ -62,9 +64,11 @@ import sailpoint.object.Schema;
 import sailpoint.object.Scope;
 import sailpoint.object.TaskSchedule;
 import sailpoint.persistence.HPMWrapper;
+import sailpoint.rule.Rule_PreDelegation;
 import sailpoint.server.HeartbeatService;
 import sailpoint.server.Importer;
 import sailpoint.server.SailPointConsole;
+import sailpoint.service.SelectionCriteria;
 import sailpoint.spring.SpringStarter;
 import sailpoint.tools.BrandingServiceFactory;
 import sailpoint.tools.GeneralException;
@@ -111,6 +115,107 @@ public class TreyConsole extends SailPointConsole {
         }
     }
     
+    private static class EntityTuple {
+        private Certification certification;
+        private String decision;
+
+        public EntityTuple (Certification cert, String decision) {
+            this.certification = cert;
+            this.decision = decision;
+        }
+
+        public Certification getEntity() {
+            return this.certification;
+        }
+
+        public String getDecision() {
+            return this.decision;
+        }
+    }
+    private static class CertEntityDecider extends WorkloadThread<EntityTuple> {
+
+        CertEntityDecider(Deque<EntityTuple> workQueue, PrintWriter out) {
+            super(workQueue, out);
+        }
+        
+        
+        @Override
+        public void run() {
+            SailPointContext ctx = null;
+            
+            try {
+                ctx = SailPointFactory.createContext();
+                String loggedInUser = ctx.getUserName();
+                Identity theUser = ctx.getObjectByName(Identity.class, loggedInUser);
+                if (theUser == null) {
+                    theUser = ctx.getObjectByName(Identity.class, "SPAdmin");
+                }
+
+                while (!this._halted) {
+                    try {
+                        Certification cert = null;
+                        String decision = null;
+                        synchronized (this._work) {
+                            if (!_work.isEmpty()) {
+                                EntityTuple tuple = this._work.pop();
+                                cert = tuple.getEntity();
+                                // Our tuple is for an object not of our context; refetch
+                                cert = ctx.getObjectById(Certification.class, cert.getId());
+                                decision = tuple.getDecision();
+                            }
+                        }
+                        if (cert != null) {
+                            // Do the deeds
+                            log.warn("Decidering Certification: " + cert + " is " + decision);
+
+                            QueryOptions entityOps = new QueryOptions();
+                            entityOps.add(Filter.eq("certification.id", cert.getId()));
+                            IncrementalObjectIterator<CertificationEntity> entityIt = new IncrementalObjectIterator<CertificationEntity>(ctx, CertificationEntity.class, entityOps);
+                            CertificationDecisioner decider = new CertificationDecisioner(ctx, cert.getId(), theUser);
+                            while (entityIt.hasNext()) {
+                                CertificationEntity entity = entityIt.next();
+                                for (CertificationItem item : entity.getItems()) {
+                                    SelectionCriteria crit = new SelectionCriteria (Arrays.asList(item.getId()));
+                                    Decision d = new Decision(decision, crit);
+                                    decider.decide(Arrays.asList(d));
+                                }
+                                entity.refreshSummaryStatus();
+                                ctx.saveObject(entity);
+                                ctx.commitTransaction();
+                            }
+                            /*
+                            cert = ObjectUtil.reattach(ctx, cert);
+                            Certificationer certificationer = new Certificationer (ctx);
+                            certificationer.refresh(cert);
+                            certificationer.sign(cert, theUser);
+                            */
+                            ctx.commitTransaction();
+                            ctx.decache();
+                        } else {
+                            // Got an empty pool; Sleep for a bit before trying again
+                            Thread.sleep(250);
+                        }
+                    } catch (Exception e) {
+                        log.error(e.getMessage(), e);
+                    }
+                }
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+            } finally {
+                if (ctx != null) {
+                    // one last time
+                    try {
+                        ctx.commitTransaction();
+                        SailPointFactory.releaseContext(ctx);
+                    } catch (Throwable t) {
+                        // don't care; report and move on
+                        t.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
     private static class RoleOrganizer extends WorkloadThread<Map<String, Object>> {
         public static final String CHILD_ROLE_KEY = "child";
         public static final String PARENT_ROLE_KEY = "parent";
@@ -434,6 +539,7 @@ public class TreyConsole extends SailPointConsole {
             try {
                 int count = 0;
                 ctx = SailPointFactory.createContext();
+                Terminator arnold = new Terminator(ctx);
                 while (!_halted) {
                     String nextId = null;
                     synchronized(_work) {
@@ -446,7 +552,7 @@ public class TreyConsole extends SailPointConsole {
                         if (object != null) {
                             if (log.isInfoEnabled()) log.info(threadName + ": Deleting " + object.getName());
                             try {
-                                ctx.removeObject(object);
+                                arnold.deleteObject(object);
                             } catch (GeneralException ge) {
                                 ge.printStackTrace();
                             }
@@ -463,7 +569,8 @@ public class TreyConsole extends SailPointConsole {
                         }
                     }
 
-                    Thread.sleep(500);
+                    // wut?
+                    //Thread.sleep(500);
                 }
                 try {
                     ctx.commitTransaction();
@@ -473,8 +580,6 @@ public class TreyConsole extends SailPointConsole {
                 }
             } catch (GeneralException ge) {
                 throw new RuntimeException(ge);
-            } catch (InterruptedException e) {
-                // nothing
             } finally {
                 if (ctx != null) {
                     try {
@@ -535,11 +640,10 @@ public class TreyConsole extends SailPointConsole {
     }
 
     public static void main(String[] args) {
-        main8(args);
-        //main7(args);
+        //main8(args);
+        main7(args);
     }
     
-    /*
     public static void main7(String [] args) {
 
         int exitStatus = 0;
@@ -617,8 +721,8 @@ public class TreyConsole extends SailPointConsole {
 
         System.exit(exitStatus);
     }
-    */
 
+    /*
     public static void main8(String[] args) {
 
         final String CONSOLE_SUFFIX = "-console";
@@ -735,6 +839,7 @@ public class TreyConsole extends SailPointConsole {
         System.exit(exitStatus);
     }
 
+    */
     TreyConsole() {
         addCommand("getAny", "Fetches XML for any object", "cmdGetAny");
         addCommand("property", "Displays property information of a given class.", "cmdProperty");
@@ -763,6 +868,8 @@ public class TreyConsole extends SailPointConsole {
         addCommand("organizeCsvRoles", "Organizes a flat role model into a hierarchy", "cmdOgranizeCSVRoles");
         addCommand("set3580", "Do that bullshit in Set-3580", "cmdSET3580");
         addCommand("scaleTestCompile", "Scale test arbitrary plan compliation", "cmdScaleTestPlanCompile");
+        addCommand("decideAll", "Decide all items in a Certification", "cmdDecideAll");
+        addCommand("set6304", "Do Set 6304 stuff with a Certification", "cmdSET6304");
     }
 
     /*
@@ -851,21 +958,41 @@ public class TreyConsole extends SailPointConsole {
 
 
     private void deleteAllOfClass(SailPointContext ctx, PrintWriter out, Class<? extends SailPointObject> theClass, int every) throws GeneralException {
-        IncrementalObjectIterator certItemIt = new IncrementalObjectIterator(ctx, theClass, new QueryOptions());
-        while (certItemIt.hasNext()) {
-            SailPointObject item = certItemIt.next();
-            ctx.removeObject(certItemIt.next());
-            if (certItemIt.getCount() % every == 0) {
-                commitAndReportDeletes(ctx, out, certItemIt.getCount(), certItemIt.getSize(), theClass.getSimpleName());
+        Deque<String> workLoad = new LinkedBlockingDeque<String>();
+        Iterator<Object[]> objectIdIt = ctx.search(theClass, new QueryOptions(), "id");
+        while (objectIdIt.hasNext()) {
+            String itemId = (String) objectIdIt.next()[0];
+            workLoad.push(itemId);
+        }
+        List<DeleterThread> threads = new ArrayList<DeleterThread>();
+        for (int i = 0; i < 4; i++) {
+            DeleterThread t = new DeleterThread (theClass, workLoad, out);
+            t.start();
+            threads.add(t);
+        }
+        
+        // Use peek method to leverage built-in locking
+        while (workLoad.peek() != null) {
+            try {
+                Thread.sleep(250);
+            } catch (InterruptedException e) {
+                // nah
+                // 
             }
         }
-        if (certItemIt.getCount() % every != 0) {
-            commitAndReportDeletes(ctx, out, certItemIt.getCount(), certItemIt.getSize(), theClass.getSimpleName());
+
+        // done!
+        for (DeleterThread t : threads) {
+            t._halted = true;
         }
     }
 
     public void cmdKnukeit(List<String> args, PrintWriter out) throws GeneralException {
         SailPointContext ctx = SailPointFactory.createContext();
+        if (Util.size(args) == 0) {
+            out.println("knukeIt Certification [increment]");
+            return;
+        }
         try {
             String clazz = args.get(0);
             int every = 50;
@@ -1351,6 +1478,46 @@ public class TreyConsole extends SailPointConsole {
             if (context != null) {
                 try {
                     SailPointFactory.releaseContext(context);
+                } catch (GeneralException ge) {
+                    log.error(ge.getMessage(), ge);
+                }
+            }
+        }
+    }
+
+    public void cmdSET6304(List<String> args, PrintWriter out) {
+        if (args.size() < 1) {
+            out.println("Imma need a Certification name or ID, bish");
+            return;
+        }
+        
+        String certId = args.get(0);
+        SailPointContext ctx = null;
+        try {
+            ctx = SailPointFactory.createContext();
+            Certification cert = ctx.getObject(Certification.class, certId);
+            if (cert == null) {
+                out.println (certId + ": Nuthin");
+                return;
+            }
+            
+            Rule_PreDelegation pd = new Rule_PreDelegation();
+            Identity identity = ctx.getObjectByName(Identity.class, "james.smith");
+            
+            Map<String, Identity> targetIdMap = new HashMap<String, Identity>();
+            CertificationActionDescriber certificationActionDescriber = new CertificationActionDescriber(Status.Delegated, ctx);
+
+            for (CertificationEntity entity : cert.getEntities()) {
+                List<CertificationItem> certItems = entity.getItems();
+                Map stuff = pd.delegateItems(cert, ctx, identity, targetIdMap, certificationActionDescriber, certItems);
+            }
+            
+        } catch (Throwable t) {
+            log.error(t.getMessage(), t);
+        } finally {
+            if (ctx != null) {
+                try {
+                    SailPointFactory.releaseContext(ctx);
                 } catch (GeneralException ge) {
                     log.error(ge.getMessage(), ge);
                 }
@@ -2102,20 +2269,57 @@ public class TreyConsole extends SailPointConsole {
          * entity, using ThreadRunner
          */
         
-        if (Util.size(args) < 2) {
-            out.println ("decideAll certID Decision [threads]");
+        if (Util.size(args) < 1) {
+            out.println ("decideAll Decision [threads]");
             return;
         }
         
-        String CERT_ID = args.get(0);
-        String DECISION_VALUE = args.get(1);
+        String DECISION_VALUE = args.get(0);
         
         int capacity = 4;
-        if (Util.size(args) > 2) {
-            capacity = Integer.valueOf(args.get(3));
+        if (Util.size(args) > 1) {
+            capacity = Integer.valueOf(args.get(1));
         }
         
-        ThreadRunner tr = new ThreadRunner(capacity);
+        SailPointContext ctx = null;
+        try {
+            ctx = SailPointFactory.createContext();
+            QueryOptions opts = new QueryOptions();
+            IncrementalObjectIterator<Certification> it = new IncrementalObjectIterator<>(ctx, Certification.class, opts);
+            LinkedBlockingDeque<EntityTuple> workLoad = new LinkedBlockingDeque<EntityTuple>();
+            
+            List<CertEntityDecider> threads = new ArrayList<CertEntityDecider>();
+            for (int i = 0; i < capacity; i++) {
+                CertEntityDecider deciderThread = new CertEntityDecider(workLoad, out);
+                deciderThread.start();
+                threads.add(deciderThread);
+            }
+
+            int count = 0;
+            while (it.hasNext()) {
+                Certification cert = it.next();
+                count++;
+                EntityTuple tuple = new EntityTuple (cert, DECISION_VALUE);
+                workLoad.add(tuple);
+                if (count % 20 == 0) {
+                    ctx.decache();
+                }
+            }
+
+            while (!workLoad.isEmpty()) {
+                Thread.sleep(500);
+            }
+
+            for (CertEntityDecider t : threads) {
+                t._halted = true;
+            }
+
+        } finally {
+            if (ctx != null) {
+                SailPointFactory.releaseContext(ctx);
+            }
+        }
+        
     }
     
     public void cmdOgranizeCSVRoles (List<String> args, PrintWriter out) throws Exception {
