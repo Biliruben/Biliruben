@@ -162,10 +162,12 @@ public class CSVPrint {
         StringBuffer buff = new StringBuffer();
         for (String column : columns) {
             String item = currentLineAsMap.get(column);
-            if (item.contains(delim)) {
-                buff.append("\"").append(item).append("\"");
-            } else {
-                buff.append(item);
+            if (item != null) {
+                if (item.contains(delim)) {
+                    buff.append("\"").append(item).append("\"");
+                } else {
+                    buff.append(item);
+                }
             }
             buff.append(delim);
         }
