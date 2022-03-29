@@ -1,6 +1,8 @@
 package biliruben.util;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -93,6 +95,14 @@ public class Util {
         }
 
         return buff.toString();
+    }
+
+    public static <T extends Object> Iterable<T> nullSafeIterator(Iterable<T> iterable) {
+        if (iterable == null) {
+            return new ArrayList<T>();
+        } else {
+            return iterable;
+        }
     }
     
     
