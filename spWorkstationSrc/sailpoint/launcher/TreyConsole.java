@@ -17,6 +17,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Random;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -31,7 +32,6 @@ import com.biliruben.util.csv.CSVSource.CSVType;
 import com.biliruben.util.csv.CSVSourceImpl;
 
 import sailpoint.api.Bootstrapper;
-import sailpoint.api.Certificationer;
 import sailpoint.api.DatabaseVersionException;
 import sailpoint.api.IncrementalObjectIterator;
 import sailpoint.api.ManagedAttributer;
@@ -40,10 +40,10 @@ import sailpoint.api.PersistenceManager;
 import sailpoint.api.PersistenceManager.LockParameters;
 import sailpoint.api.SailPointContext;
 import sailpoint.api.SailPointFactory;
+import sailpoint.api.Terminator;
 import sailpoint.api.certification.CertificationActionDescriber;
 import sailpoint.api.certification.CertificationDecisioner;
 import sailpoint.api.certification.CertificationDecisioner.Decision;
-import sailpoint.api.Terminator;
 import sailpoint.object.Application;
 import sailpoint.object.AttributeDefinition;
 import sailpoint.object.Attributes;
@@ -52,6 +52,7 @@ import sailpoint.object.Certification;
 import sailpoint.object.CertificationAction.Status;
 import sailpoint.object.CertificationEntity;
 import sailpoint.object.CertificationItem;
+import sailpoint.object.Custom;
 import sailpoint.object.Filter;
 import sailpoint.object.Filter.MatchMode;
 import sailpoint.object.Identity;
@@ -74,6 +75,7 @@ import sailpoint.tools.BrandingServiceFactory;
 import sailpoint.tools.GeneralException;
 import sailpoint.tools.Util;
 import sailpoint.tools.XmlUtil;
+import sailpoint.tools.xml.AbstractXmlObject;
 import sailpoint.tools.xml.XMLObjectFactory;
 
 public class TreyConsole extends SailPointConsole {
@@ -81,6 +83,8 @@ public class TreyConsole extends SailPointConsole {
     private Set<String[]> _names;
     private PrintWriter _out;
     private int _propNameMaxLength;
+    private Map<String, Object> _nameSpace;
+    private static SailPointContext staticContext;
 
     static private Log log = LogFactory.getLog(TreyConsole.class);
     
@@ -640,10 +644,11 @@ public class TreyConsole extends SailPointConsole {
     }
 
     public static void main(String[] args) {
-        //main8(args);
-        main7(args);
+        main8(args);
+        //main7(args);
     }
     
+    /*
     public static void main7(String [] args) {
 
         int exitStatus = 0;
@@ -721,8 +726,8 @@ public class TreyConsole extends SailPointConsole {
 
         System.exit(exitStatus);
     }
+    */
 
-    /*
     public static void main8(String[] args) {
 
         final String CONSOLE_SUFFIX = "-console";
@@ -839,8 +844,8 @@ public class TreyConsole extends SailPointConsole {
         System.exit(exitStatus);
     }
 
-    */
     TreyConsole() {
+        _nameSpace = new HashMap<String, Object>();
         addCommand("getAny", "Fetches XML for any object", "cmdGetAny");
         addCommand("property", "Displays property information of a given class.", "cmdProperty");
         addCommand("mappedClasses", "Displays classes mapped in the Hibernate configuration.", "cmdMappedClasses");
@@ -870,8 +875,37 @@ public class TreyConsole extends SailPointConsole {
         addCommand("scaleTestCompile", "Scale test arbitrary plan compliation", "cmdScaleTestPlanCompile");
         addCommand("decideAll", "Decide all items in a Certification", "cmdDecideAll");
         addCommand("set6304", "Do Set 6304 stuff with a Certification", "cmdSET6304");
+        addCommand("set8784", "Do Set 8784 stuff with Application Schemas", "cmdSet8784Test");
+        addCommand("setSignal", "Set a secret signal", "cmdSetSignal");
+        addCommand("getSignal", "Get a secret signal", "cmdGetSignals");
+        addCommand("addCommand", "Do the thing you always forget to do", "doAnyCommand");
+        addCommand("set8784-2", "Another goddamn test", "cmdSet8784Test2");
+        addCommand("set8784-3", "Kill me", "cmdSet8784Test3");
+        addCommand("nsGet", "Get from namespace", "cmdNSGet");
+        addCommand("nsPut", "Put into namespace", "cmdNSPut");
+        addCommand("nsPrint", "Print the namespace", "cmdNSPrint");
+        addCommand("nsClear", "Clears the namespace", "cmdNSClear");
+        addCommand("set8784-4", "sigh", "cmdSet8784Test4");
+        addCommand("set8784-5", "bler", "cmdSet8784Test5");
+        addCommand("set8784-6", "Try to organically create the mult-flush race condition", "cmdSet8784Test6");
     }
 
+    public void doAnyCommand(List<String> args, PrintWriter out) {
+        if (Util.size(args) < 2) {
+            out.println("Daddy needs at least 2 args, maybe 3: command [description] method");
+            return;
+        }
+        String command = args.get(0);
+        String description = "Custom command";
+        int methodIndex = 1;
+        if (Util.size(args) > 2) {
+            description = args.get(1);
+            methodIndex = 2;
+        }
+        String method = args.get(methodIndex);
+        addCommand(command, description, method);
+        out.println("Added " + command +"; Might wanna '?' to confirm");
+    }
     /*
      * Fetches the name and value type of the given property.  Tracks the longest string
      * length of all known property names to ensure prety formatting
@@ -2055,6 +2089,446 @@ public class TreyConsole extends SailPointConsole {
         return file;
     }
     
+    public void cmdSetSignal(List<String> args, PrintWriter out) throws Exception {
+        if (Util.size(args) != 2) {
+            out.println("2 args required: signal value");
+            return;
+        }
+        String signal = args.get(0);
+        String value = args.get(1);
+        SailPointContext ctx = SailPointFactory.createContext();
+        try {
+            Custom signals = ctx.getObjectByName(Custom.class, "Signals");
+            if (signals == null) {
+                signals = new Custom();
+                signals.setName("Signals");
+                ctx.saveObject(signals);
+            }
+            signals.put(signal, value);
+            ctx.commitTransaction();
+        } finally {
+            if (ctx != null) SailPointFactory.releaseContext(ctx);
+        }
+    }
+    
+    public void cmdGetSignal(List<String> args, PrintWriter out) throws Exception {
+        if (Util.size(args) != 1)  {
+            out.println("Just the signal name is all I want");
+            return;
+        }
+        String signal = args.get(0);
+        SailPointContext ctx = SailPointFactory.createContext();
+        try {
+            Custom signals = ctx.getObjectByName(Custom.class, "Signals");
+            if (signals == null) {
+                signals = new Custom();
+                signals.setName("Signals");
+                ctx.saveObject(signals);
+                ctx.commitTransaction();
+            }
+            Object value = signals.get(signal);
+            out.println(value);
+        } finally {
+            if (ctx != null) SailPointFactory.releaseContext(ctx);
+        }
+
+        
+    }
+    
+    private static class Test2_Thread1 extends Thread {
+        private Log log = LogFactory.getLog(Test2_Thread1.class);
+
+        @Override
+        public void run () {
+            SailPointContext ctx = null;
+            try {
+                ctx = SailPointFactory.createContext();
+                log.warn("Imma git!");
+                staticApp = ctx.getObjectByName(Application.class, "Active_Directory - donkey");
+            } catch (GeneralException ge) {
+                log.error(ge.getMessage(), ge);
+            } finally {
+                if (ctx != null) {
+                    try {
+                        SailPointFactory.releaseContext(ctx);
+                    } catch (GeneralException ge) {
+                        log.error(ge.getMessage(), ge);
+                    }
+                }
+            }
+        }
+    }
+
+    public static Application staticApp = null;
+    public void cmdSet8784Test2(List<String> args, PrintWriter out) throws Exception {
+        SailPointContext ctx = SailPointFactory.createContext();
+        try {
+            staticApp = ctx.getObjectByName(Application.class, "Active_Directory - donkey");
+            Thread t = new Test2_Thread1();
+            t.start();
+            //t needs to start "getting"
+            ctx.commitTransaction();
+        } finally {
+            if (ctx != null) SailPointFactory.releaseContext(ctx);
+        }
+    }
+    
+    public void cmdSet8784Test4 (List<String> args, PrintWriter out) throws Exception {
+        SailPointContext ctx = SailPointFactory.createContext();
+        try {
+
+            Application app = ctx.getObjectByName(Application.class, "Active_Directory - donkey");
+            Application clone = (Application)XMLObjectFactory.getInstance().clone(app, ctx);
+            List<Schema> clonedSchemas = clone.getSchemas();
+            for (Schema schema : clonedSchemas) {
+                schema.setId(null);
+            }
+            app.setSchemas(clonedSchemas);
+            ctx.commitTransaction();
+        } finally {
+            if (ctx != null) SailPointFactory.releaseContext(ctx);
+        }
+    }
+
+    private static class Set8784_Test6_Thread extends Thread {
+        
+        private boolean getApp;
+        int sleepTime;
+        // try to keep our sleeps random
+        private boolean stop;
+        Set8784_Test6_Thread (int minSleep, int biasSleep) {
+            this.getApp = true;
+            sleepTime = new Random().nextInt(biasSleep) + minSleep;
+            stop = false;
+        }
+
+        public void run () {
+            try {
+                Application a = null;
+                // Fool SailPointFactory into thinking this thread owns a
+                // context
+                staticContext = SailPointFactory.createContext();
+                    while (!stop) {
+                        try {
+                            if (this.getApp) {
+                                // This might create an unwanted race where another
+                                // thread goes LIE; Gotta risk it
+                                staticContext.decache();
+                                // loads the Application (and its collections) into the Hibernate Session
+                                a = staticContext.getObjectByName(Application.class, "Active_Directory - donkey");
+                                // active schema sniffing; also helpful to have something
+                                // else for the code to do that's not just sleeping
+                                List schemas = a.getSchemas();
+                                if (Util.isEmpty(schemas)) {
+                                    log.error("Schemas are null!");
+                                    stop = true;
+                                } else {
+                                    // do something not sleeping
+                                    log.warn("Found schemas: " + schemas);
+                                }
+                            }
+                            // sleep only for a little bit of time. This is to try and
+                            // keep the threads off-sync from each other from when they launched.
+                            try {
+                                Thread.sleep(sleepTime);
+                            } catch (InterruptedException ie) {
+                                // don't care
+                            }
+                            // and boom goes the dynamite
+                            if (!stop) staticContext.commitTransaction();
+                        } catch (Throwable t) {
+                            log.error("inner: " + t.getMessage(), t);
+                        }
+                    }
+            } catch (Throwable t) {
+                log.error("outer: " + t.getMessage(), t);
+            }
+        }
+
+        public void halt() {
+            this.stop = true;
+        }
+    }
+
+    public void cmdSet8784Test6(List<String> args, PrintWriter out) {
+        int threadCount = 4;
+        if (Util.size(args) > 0) {
+            threadCount = Util.atoi(args.get(0));
+            if (threadCount < 1) {
+                out.println("Naw, dawg. Daddy needs 1 or more threads, ya dig?");
+                return;
+            }
+        }
+        int BIAS_SLEEP_TIME = 150;
+        int MIN_SLEEP_TIME = 50;
+        SailPointContext ctx = null;
+        try {
+            ctx = SailPointFactory.createContext();
+            // This is the "signals" Custom object; We use it to let another
+            // JVM (aka console) tell us to stop making so much noise
+            Custom signals = ctx.getObjectByName(Custom.class, "Signals");
+            if (signals == null) {
+                signals = new Custom();
+                signals.setName("Signals");
+                staticContext.saveObject(signals);
+            }
+            // How we submit cfg tweaks without rebuilding
+            Custom testCfg = ctx.getObjectByName(Custom.class, "TEST1_CFG");
+            int minSleep = testCfg.getInt("minSleepTime");
+            if (minSleep <= 0) minSleep = MIN_SLEEP_TIME;
+            int biasSleep = testCfg.getInt("biasSleepTime");
+            if (biasSleep <= 0) biasSleep = BIAS_SLEEP_TIME;
+            signals.put("movieSign", false);
+            ctx.commitTransaction();
+            ctx.decache();
+            List<Set8784_Test6_Thread> threads = new ArrayList<Set8784_Test6_Thread>();
+            boolean getAppFlag = true;
+            for (int i = 0; i < threadCount; i++) {
+                Set8784_Test6_Thread t = new Set8784_Test6_Thread(minSleep, biasSleep);
+                getAppFlag = false;
+                t.start();
+                threads.add(t);
+            }
+            boolean stop = false;
+            while (!stop) {
+                try {
+                    Thread.sleep(250);
+                } catch (InterruptedException e) {
+                    // don't care
+                }
+                try {
+                    // avoid using staticContext for this
+                    signals = ctx.getObjectByName(Custom.class, "Signals");
+                    if (signals != null) {
+                        stop = signals.getBoolean("movieSign");
+                        // don't let it cache Signals
+                        ctx.decache(signals);
+                    } else {
+                        log.warn("No Signals");
+                    }
+                } catch (Throwable t) {
+                    // We're using the same dodgey context our test Threads are using
+                    // Anticipate some complaints, but sally forth
+                    log.error(t.getMessage(), t);
+                }
+            }
+            for (Set8784_Test6_Thread t : threads) {
+                t.halt();
+            }
+        } catch (GeneralException ge) {
+            log.error(ge.getMessage(), ge);
+        } finally {
+            try {
+                if (ctx != null) SailPointFactory.releaseContext(staticContext);
+            } catch (GeneralException ge) {
+                log.error(ge.getMessage(), ge);
+            }
+        }
+
+    }
+
+    private static class Set8784_Test5_Thread extends Thread {
+        private boolean getApp;
+        public Set8784_Test5_Thread(boolean getApp) {
+            this.getApp = getApp;
+        }
+        @Override
+        public void run () {
+            try {
+                staticContext = SailPointFactory.createContext();
+                if (this.getApp) {
+                    Application a = staticContext.getObjectByName(Application.class, "Active_Directory - donkey");
+                    a.load();
+                } else {
+                    // do _something_
+                    staticContext.getObjectByName(Identity.class, "Amy.Cox");
+                }
+                staticContext.commitTransaction();
+                //SailPointContext theContext = SailPointFactory.createContext();
+                //staticApp = theContext.getObjectByName(Application.class, "Active_Directory - donkey");
+                //theContext.commitTransaction();
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+            }
+        }
+    }
+
+    public void cmdSet8784Test5 (List<String> args, PrintWriter out) throws Exception {
+        Thread t1 = new Set8784_Test5_Thread(true);
+        Thread t2 = new Set8784_Test5_Thread(false);
+        t1.start();
+        t2.start();
+    }
+
+    public void cmdSet8784Test3(List<String> args, PrintWriter out) throws Exception {
+        SailPointContext ctx = SailPointFactory.createContext();
+        try {
+
+            Application app = ctx.getObjectByName(Application.class, "Active_Directory - donkey");
+            ctx.commitTransaction();
+            Application app2 = ctx.getObjectByName(Application.class, "Active_Directory - donkey");
+
+            app2.setSchemas(null);
+            ctx.commitTransaction();
+        } finally {
+            if (ctx != null) SailPointFactory.releaseContext(ctx);
+        }
+    }
+
+    public void cmdNSClear(List<String> args, PrintWriter out) throws Exception {
+        _nameSpace.clear();
+    }
+
+    public void cmdNSPrint(List<String> args, PrintWriter out) throws Exception {
+        out.println(Util.mapToString(_nameSpace));
+    }
+
+    public void cmdNSGet(List<String> args, PrintWriter out) throws Exception {
+        if (Util.size(args) < 1) {
+            out.println("What name, dummy?");
+            return;
+        }
+        String name = args.get(0);
+        Object o = _nameSpace.get(name);
+        String data = null;
+        if (o instanceof AbstractXmlObject) {
+            data = XMLObjectFactory.getInstance().toXml(o);
+        } else {
+            data = o.toString();
+        }
+        out.println(data);
+    }
+
+    public void cmdNSPut(List<String> args, PrintWriter out) throws Exception {
+        if (Util.size(args) < 1) {
+            out.println("<name> [<value>]");
+            return;
+        }
+        String name = args.get(0);
+        Object value = null;
+        if (Util.size(args) > 1) {
+            value = args.get(1);
+        }
+        if (Util.size(args) > 2) {
+            out.println("Ya, we're gonna ignore some of that bullshit you sent");
+        }
+        _nameSpace.put(name, value);
+    }
+
+    private static class MemoryMonster extends Thread {
+        private List<byte[]> _memoryList;
+        private int _byteSize;
+        private static int DEFAULT_BYTE_LIMIT = 256;
+
+        public MemoryMonster() {
+            this(DEFAULT_BYTE_LIMIT);
+            setName("Memory Monster");
+        }
+        public MemoryMonster(int size) {
+            this._byteSize = size;
+            this._memoryList = new ArrayList<byte[]>();
+        }
+
+        @Override
+        public void run () {
+            Random r = new Random();
+            boolean halt = false;
+            while (!Thread.currentThread().isInterrupted() && !halt) {
+                byte[] newBytes = new byte[this._byteSize];
+                r.nextBytes(newBytes);
+                this._memoryList.add(newBytes);
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    halt = true;
+                }
+            }
+        }
+    }
+    public void cmdSet8784Test(List<String> args, PrintWriter out) throws Exception {
+        // get an Application
+        int memSize = -1;
+        if (Util.size(args) > 0) {
+            memSize = Util.atoi(args.get(0));
+        }
+
+        SailPointContext ctx = SailPointFactory.createContext();
+        try {
+        // play with its Schemas until they fall off
+            Custom signal = ctx.getObjectByName(Custom.class, "Signals");
+            Custom testCfg = ctx.getObjectByName(Custom.class, "TEST1_CFG");
+            int threadCount = testCfg.getInt("testThreads");
+            if (threadCount < 1) {
+                threadCount = 1;
+            }
+            signal.put("movieSign", false);
+            ctx.saveObject(signal);
+            ctx.commitTransaction();
+            ctx.decache(signal);
+            boolean movieSign = signal.getBoolean("movieSign");
+            Runnable r = new Runnable() {
+                @Override
+                public void run () {
+                    SailPointContext context = null;
+                    try {
+                        context = SailPointFactory.createContext();
+                        String lockMode = PersistenceManager.LOCK_TYPE_TRANSACTION;
+                        do {
+                            Application a = context.getObjectByName(Application.class, "ADDirectDemoData - clone");
+                            Application locked = ObjectUtil.lockObject(context, Application.class, a.getId(), null, lockMode);
+                            Object deltaStat = locked.getAttributeValue(Application.ATTR_DELTA_AGGREGATION);
+                            if (deltaStat instanceof Map) {
+                                Map deltaStatMap = (Map)deltaStat;
+                                Date now = new Date();
+                                deltaStatMap.put(now.toString(), now.getTime());
+                                locked.setAttribute(Application.ATTR_DELTA_AGGREGATION, deltaStatMap);
+                            }
+                            context.saveObject(locked);
+                            ObjectUtil.unlockObject(context, locked, lockMode);
+                        } while (!Thread.currentThread().isInterrupted());
+                    } catch (GeneralException g) {
+                        throw new RuntimeException (g);
+                    } finally {
+                        try {
+                            if (context != null) SailPointFactory.releaseContext(context);
+                        } catch (GeneralException ge) {
+                            log.error(ge.getMessage(), ge);
+                        }
+                    }
+                }
+
+            };
+            // Add the memory monster
+            List<Thread> threads = new ArrayList<Thread>();
+            Thread monster = null;
+            // Size -1 means: use default
+            // Size 0 means: don't use at all
+            if (memSize == -1) {
+                monster = new MemoryMonster();
+            } else if (memSize > 0) {
+                monster = new MemoryMonster(memSize);
+            }
+            if (monster != null) {
+                threads.add(monster);
+                monster.start();
+            }
+            for (int i = 0; i < threadCount; i++) {
+                Thread t = new Thread(r);
+                threads.add(t);
+                t.start();
+            }
+            while (!movieSign) {
+                Thread.sleep(250);
+                signal = ctx.getObjectByName(Custom.class, "Signals");
+                movieSign = signal.getBoolean("movieSign");
+                ctx.decache(signal);
+            }
+            for (Thread t : threads) t.interrupt();
+        } finally {
+            if (ctx != null) SailPointFactory.releaseContext(ctx);
+        }
+    }
+
     public void cmdUpdateCSVRole(List<String> args, PrintWriter out) throws Exception {
         if (Util.size(args) != 1) {
             println("Options: csvFile");
