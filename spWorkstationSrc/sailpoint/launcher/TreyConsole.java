@@ -1225,7 +1225,7 @@ public class TreyConsole extends SailPointConsole {
             for (String fucker : args) {
                 fuckingBuff.append(fucker).append(" ");
             }
-            out.println(fuckingBuff.toString() + " can all go politely fuck themseleves in their respective ani");
+            out.println(fuckingBuff.toString() + " can all go politely fuck themseleves in their favorite hole");
         }
     }
     
