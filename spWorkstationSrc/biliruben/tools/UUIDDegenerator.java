@@ -12,9 +12,16 @@ public class UUIDDegenerator {
 
     private static final String UUID = "uuid";
     private static GetOpts _opts;
+    private String uuid;
+    private String ipAddyHex;
+    private String sysTime;
+    private String hiTime;
+    private String loTime;
+    private String counter;
 
-    public UUIDDegenerator() {
-        // TODO Auto-generated constructor stub
+    public UUIDDegenerator(String uuid) {
+        this.uuid = uuid;
+        deconstruct();
     }
 
     public static void main(String[] args) throws UnknownHostException {
@@ -29,29 +36,71 @@ public class UUIDDegenerator {
             return;
         }
         
-        String ipAddy = uuid.substring(0, 8);
-        String sysTime = uuid.substring(8,16);
-        String hiTime = uuid.substring(16,20);
-        String loTime = uuid.substring(20, 28);
-        String counter = uuid.substring(28, 32);
+        UUIDDegenerator deGenner = new UUIDDegenerator(uuid);
+        String ipAddy = deGenner.getIpHex();
+        String sysTime = deGenner.getSysTime();
+        String hiTime = deGenner.getHiTime();
+        String loTime = deGenner.getLoTime();
+        String counter = deGenner.getCounter();
         
-        System.out.println("Hex values: ");
+        System.out.println("Hex values");
         System.out.println("ipAddy: " + ipAddy);
         System.out.println("sysTime: " + sysTime);
         System.out.println("hiTime: " + hiTime);
         System.out.println("loTime: " + loTime);
         System.out.println("counter: " + counter + " (" + Integer.parseInt(counter, 16) + ")");
         
-        System.out.println("IP Address: " + getIp(ipAddy));
-        
+        System.out.println("IP Address: " + deGenner.getIp());
     }
     
-    private static String getIp(String fromHex) {
+
+    private void deconstruct() {
+        ipAddyHex = uuid.substring(0, 8);
+        sysTime = uuid.substring(8,16);
+        hiTime = uuid.substring(16,20);
+        loTime = uuid.substring(20, 28);
+        counter = uuid.substring(28, 32);
+    }
+
+    public String getIpHex() {
+        return this.ipAddyHex;
+    }
+    
+    public String getSysTime() {
+        return this.sysTime;
+    }
+    
+    public String getHiTime() {
+        return this.hiTime;
+    }
+    
+    public String getLoTime() {
+        return this.loTime;
+    }
+
+    public String getCounter() {
+        return this.counter;
+    }
+    
+    public String getIp() {
+        StringBuilder ipAddressBuilder = new StringBuilder();
+        for (int i = 0; i < 4; i++) {
+            int pos = i * 2;
+            String octetHex = this.ipAddyHex.substring(pos, pos + 2);
+            int octet = Integer.parseInt(octetHex, 16);
+            ipAddressBuilder.append(octet).append(".");
+        }
+        int length = ipAddressBuilder.length();
+        ipAddressBuilder.delete(length - 1, length);
+        return ipAddressBuilder.toString();
+    }
+
+    public String getIp_rotated() {
         StringBuilder ipAddressBuilder = new StringBuilder();
 
         for (int i = 0; i < 4; i++) {
             int pos = i * 2;
-            String octetHex = fromHex.substring(pos, pos + 2);
+            String octetHex = this.ipAddyHex.substring(pos, pos + 2);
             String high = null;
             String low = null;
             if (octetHex.length() > 2) {
@@ -71,10 +120,9 @@ public class UUIDDegenerator {
             int octet=Integer.parseInt(high + low,16);
             ipAddressBuilder.append(octet).append(" ");
         }
+        ipAddressBuilder.delete(ipAddressBuilder.length() - 1, ipAddressBuilder.length());
         
         return ipAddressBuilder.toString();
-
-        
     }
     
     private static void init(String[] args) {
