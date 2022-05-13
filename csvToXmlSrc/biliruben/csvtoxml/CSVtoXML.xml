@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Items with !!!! are simply place holders. They are for the human and not the processor -->
+<!DOCTYPE sailpoint PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+<sailpoint>
+  <Identity assignedRoleSummary="BRLargeTest" name="!!!!">
+    <Attributes>
+      <Map>
+        <entry key="displayName" value="!!!!"/>
+      </Map>
+    </Attributes>
+    <Links>
+      <Link displayName="!!!!" entitlements="true" identity="!!!!">
+        <ApplicationRef>
+          <Reference class="sailpoint.object.Application" name="!!!!"/>
+        </ApplicationRef>
+        <Attributes/>
+      </Link>
+    </Links>
+  </Identity>
+</sailpoint>
