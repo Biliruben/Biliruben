@@ -14,6 +14,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathException;
 import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
 import org.w3c.dom.Attr;
@@ -35,6 +36,9 @@ public class XPathUtil {
      * Returns the last token of the xpath expression
      */
     public String getLastToken (String xpathExpression) {
+        // a property value might have a slash in it, and thus
+        // the xpath /foo/bar [bas = 'her/derp'] would be
+        // cause for consternation. Something to come back to.
         String[] tokens = xpathExpression.split("/");
         return tokens[tokens.length - 1];
     }
@@ -105,6 +109,10 @@ public class XPathUtil {
 
     public Node findExistingParentNode (Node node, String xpath) throws XPathException {
         String parentXpath = findExistingParentXpath(node, xpath);
+        if (parentXpath == null || "".equals(parentXpath.trim())) {
+            // there is no parent xpath and this will explode. Just return null
+            return null;
+        }
         Node parentNode = findNodes(node, parentXpath).item(0);
         return parentNode;
     }
@@ -133,7 +141,7 @@ public class XPathUtil {
         // otherwise, drop the last token and loop until there are no further elements
         // in the xpath, in which case the parent must be '/'
         boolean found = false;
-        while (!found) {
+        while (!found && !xpath.equals("")) {
             XPathExpression expression = factory.newXPath().compile(xpath);
             found = (Boolean)expression.evaluate(node, XPathConstants.BOOLEAN);
             if (!found) {
@@ -160,15 +168,6 @@ public class XPathUtil {
         if (xpath.endsWith("/")) {
             xpath = xpath.substring(0, xpath.length() - 1);
         }
-        // Get the last token of xpath. If it's a non-element node (like
-        // an Attr), we'll have to tack it on at the end
-        // why?
-        /*
-        String last = getLastToken(xpath);
-        // Now get the xpath of the closest element (which could still
-        // be the current value in xpath)
-        String xpathEl = getXpathOfElement(xpath);
-        */
 
         // returns the relative xpath that differentiates xpaths 1 and 2
         if (!xpath.startsWith(parentPath)) {
@@ -178,17 +177,6 @@ public class XPathUtil {
         if (!xpath.equals(parentPath)) {
             diffXpath = xpath.substring(parentPath.length() + 1);
         }
-        /*
-        if (last.contains("@") || last.contains("()")) {
-            // the last token was a property or text(). That means it got stripped
-            // before we did the diff. Tack it back on.
-            if (diffXpath.equals("")) {
-                diffXpath = last;
-            } else {
-                diffXpath = diffXpath + "/" + last;
-            }
-        }
-        */
         return diffXpath;
     }
 
@@ -310,9 +298,12 @@ public class XPathUtil {
         return buff.toString();
     }
 
+    public XPathExpression compile(String xpath) throws XPathException {
+        XPathExpression expression = factory.newXPath().compile(xpath);
+        return expression;
+    }
     public static void main (String[] args) throws SAXException, IOException, ParserConfigurationException, XPathException {
         XPathUtil util = new XPathUtil();
-
         String xpath2 = "/sailpoint/Identity/Attributes/Map/entry/value/List/String/text[key = 'fart']";
         System.out.println("elementonly xpath2: " + util.getXpathOfElement(xpath2));
         

@@ -3,7 +3,6 @@ package biliruben.csvtoxml;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -11,13 +10,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.TreeSet;
 
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMResult;
+import javax.xml.transform.dom.DOMSource;
 import javax.xml.xpath.XPathException;
-import javax.xml.xpath.XPathExpression;
-import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -27,23 +27,20 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.w3c.dom.Text;
 import org.w3c.dom.bootstrap.DOMImplementationRegistry;
 import org.w3c.dom.ls.DOMImplementationLS;
 import org.w3c.dom.ls.LSOutput;
 import org.w3c.dom.ls.LSSerializer;
 
-import com.biliruben.util.csv.CSVIllegalOperationException;
 import com.biliruben.util.csv.CSVSource;
 import com.biliruben.util.csv.CSVSource.CSVType;
 import com.biliruben.util.csv.CSVSourceImpl;
-import com.biliruben.util.csv.CSVSourceObject;
 
 import biliruben.tools.xml.DOMWrapper;
 
 
 /**
- * Given a CSV file and an XML template, create a new XML file with each CSV object
+ * Given a CSV file, an XML template, and a set of Directive Properties, create a new XML file with each CSV object
  * represented as an XML object.
  * @author trey.kirk
  *
@@ -104,35 +101,35 @@ public class CSVToXML {
     private XPathUtil xpathUtil;
     private Document document;
     private Properties properties;
-    private String documentColumn;
-    private String lastDocumentValue;
+    private String documentDirective;
     private String xmlTemplateFileName;
+    private String lastDocumentValue;
 
     private static Log log = LogFactory.getLog(CSVToXML.class);
-    // So I'm writing a processor. Would a SAX Parser fit? It would essentially hold a CSVRecord iterator and for each record, parse
-    // the XML template with a SAXParser. As we parse, for any element w/ directives, we create or modify the current Node. Otherwise 
-    // we'd just direct the unparsed Node to the new XML object (Document).
-    //
-    // Using an XML parser sounds good, but that means the directives have to be valid XML. Well, let's also acknowledge I'm just writing
-    // an XML transformer that doesn't use XSLT, because now I'm landing on the directives being abstracted from the XML template and making
-    // them part of their own input vehicle (properties?)
-    //
-    // So a DOM parser is probably fine, just need to pull up Document and test if each node has a defined XPath
-    
+
+    /**
+     * Sets up the CSVToXML processor by reading the Properties file and building the Directives. The
+     * XML file is also parsed and the Document is built.
+     * @param propertiesFile
+     * @param xmlTemplateFile
+     * @param csvFile
+     * @throws IOException
+     */
     public CSVToXML(String propertiesFile, String xmlTemplateFile, String csvFile) throws IOException {
         this.properties = new Properties();
         this.properties.load(new FileReader(getFile(propertiesFile)));
-        this.documentColumn = this.properties.getProperty("document");
-        if (this.documentColumn == null) {
+        this.documentDirective = this.properties.getProperty("documentDirective");
+        if (this.documentDirective == null) {
             // let's call this a required property. That requirement can be worked around by setting
             // any always-unique column as the document
-            throw new NullPointerException ("document property is required!");
+            throw new NullPointerException ("documentDirective property is required!");
         }
         this.csvFile = csvFile;
         this.xpathUtil = new XPathUtil();
         // get the Document
         this.xmlTemplateFileName = xmlTemplateFile;
         parseXml();
+        buildDirectives();
 
     }
 
@@ -148,42 +145,160 @@ public class CSVToXML {
         return file;
     }
 
+    /*
+     * Validation includes:
+     * - No circular references via the parent attribute
+     * - All XPaths compile
+     */
+    private void validateDirectives() {
+        for (Directive d : directives.values()) {
+            validateParents(d);
+            // nothing to evaluate from the return, only that it works.
+            // an invalid XPath will generate an exception
+            try {
+                xpathUtil.compile(d.getXPathExpression());
+            } catch (XPathException xp) {
+                throw new IllegalArgumentException ("Error parsing XPath for " + d, xp);
+            }
+        }
+        // validate the documentDirective. This Directive must have a source set to CSV
+        // with a value
+        Directive docDirective = directives.get(this.documentDirective);
+        if (docDirective == null) {
+            throw new IllegalArgumentException ("No documentDirective found for: " + this.documentDirective);
+        }
+        if (!docDirective.getSource().equals("csv")) {
+            throw new IllegalArgumentException ("docDirective must define specify 'csv' as source");
+        }
+    }
+
+    private void validateParents(Directive directive) {
+        TreeSet<String> parents = new TreeSet<String>();
+        Directive ogDirective = directive;
+        while (directive.getParent() != null) {
+            String thisParent = directive.getParent();
+            // false means the Set was not modified because the value already existed
+            boolean noParent = parents.add(thisParent);
+            if (!noParent) {
+                throw new IllegalArgumentException ("Illegal circular parent reference for: " + ogDirective);
+            }
+            directive = directives.get(thisParent);
+        }
+    }
+
     private void buildDirectives() throws FileNotFoundException, IOException {
         List<Directive> directiveList = Directive.extractDirectives(this.properties);
         this.directives = new HashMap<String, Directive>();
         for (Directive d : directiveList) {
             this.directives.put(d.getName(), d);
         }
+        validateDirectives();
         log.debug("Directives: " + this.directives);
     }
 
+    private Document cloneFromDocument() throws TransformerException, XPathException {
+        TransformerFactory tfactory = TransformerFactory.newInstance();
+        Transformer tx = tfactory.newTransformer();
+        DOMSource src = new DOMSource(this.document);
+        DOMResult result = new DOMResult();
+        tx.transform(src, result);
+        Document clone = (Document)result.getNode();
+        // This is a full clone of the source Document, which has template datat in it. So the next
+        // step is to REMOVE any node(s?) defined in our properties as the document node
+        Node docNode = getDocumentNode(clone);
+        // This node isn't likely to be the root node. So we need to remove it from its immediate parent
+        // Element
+        docNode.getParentNode().removeChild(docNode);
+        return clone;
+    }
+
+    /*
+     * Returns the Node specified by the documentDirective xpath
+     */
+    private Node getDocumentNode(Document fromDocument) throws XPathException {
+        Directive docDirective = directives.get(this.documentDirective);
+        String elementXpath = xpathUtil.getXpathOfElement(docDirective.getXPathExpression());
+        // null doc nodes are not allowed. So just let an NPE fly if it happens
+        // (BAD PROGRAMMER!)
+        Node docNode = xpathUtil.findNodes(fromDocument, elementXpath).item(0);
+        return docNode;
+    }
     /**
      * Processes the CSV file
+     * @return Document new Document that contains newly defined Nodes for each object defined
+     *                  by the CSV data
+     * @throws IOException 
+     * @throws FileNotFoundException 
+     * @throws XPathException 
+     * @throws TransformerException 
      * @throws Exception
      */
-    public void process() throws Exception {
+    public Document process() throws CSVToXMLException {
         // build the directives
-        if (this.directives == null) {
-            buildDirectives();
-        }
-        
-        // build the CSVSource
-        CSVSource csvSource = new CSVSourceImpl(getFile(csvFile), CSVType.WithHeader);
-
-        // process each line
-        for (Map<String, String> data : csvSource) {
-            log.debug("CSV: " + data);
-            // need to test for write first; If the data has moved to the next object,
-            // we don't want to munge the document with new shtuff
-            writeDocument(data);
-            processData(data, document);
-            if (log.isDebugEnabled()) {
-                log.debug("document after CSV processing: ");
-                log.debug(getLogDocument());
+        Document outDoc = null;
+        try {
+            if (this.directives == null) {
+                buildDirectives();
             }
-            resetDirectives();
+
+            // build the CSVSource
+            CSVSource csvSource = new CSVSourceImpl(getFile(csvFile), CSVType.WithHeader);
+
+            // Construct the new Document
+            outDoc = cloneFromDocument();
+            // process each line
+            Map<String, String> lastData = null;
+            for (Map<String, String> data : csvSource) {
+                lastData = data;
+                log.debug("CSV: " + data);
+                // First operation is to update the outputDocument
+                updateOutDoc(outDoc, data);
+                processData(data, document);
+                if (log.isDebugEnabled()) {
+                    log.debug("document after CSV processing: ");
+                    log.debug(getLogDocument());
+                }
+                resetDirectives();
+            }
+            // exhausted the CSV document; Do one last update to the out document
+            updateOutDoc (outDoc, lastData, true);
+        } catch (Exception e) {
+            throw new CSVToXMLException(e);
         }
-        writeDocument(null);
+        return outDoc;
+    }
+
+    private void updateOutDoc (Document outputDocument, Map<String, String> data) throws XPathException, IOException {
+        updateOutDoc(outputDocument, data, false);
+    }
+
+    private void updateOutDoc (Document outputDocument, Map<String, String> data, boolean finalUpdate) throws XPathException, IOException {
+        Directive documentDirective = directives.get(this.documentDirective);
+        if (this.lastDocumentValue == null) {
+            lastDocumentValue = documentDirective.deriveValue(data);
+            // nothing to do after this
+            return;
+        }
+        String currentDocumentValue = documentDirective.deriveValue(data);
+        if (finalUpdate || !currentDocumentValue.equals(lastDocumentValue)) {
+            // we have a new document object. Migrate the previousone to our output
+
+            // Extract the document node from our template Document and adopt into the outDoc
+            Node processedNode = getDocumentNode(this.document);
+            // this node needs to be migrated from the template document to the output document
+            // Get the parent node of document Node's parent element.
+            Node parentNode = processedNode.getParentNode();
+            String parentPath = xpathUtil.getXpath(parentNode);
+            Node newParentNode = xpathUtil.findExistingParentNode(outputDocument, parentPath);
+            outputDocument.adoptNode(processedNode);
+            newParentNode.appendChild(processedNode);
+            // resets the document
+            parseXml();
+        }
+
+        log.debug("Output document:");
+        logDocument(outputDocument);
+        lastDocumentValue = currentDocumentValue;
     }
 
     private void resetDirectives() {
@@ -195,7 +310,7 @@ public class CSVToXML {
     private String getLogDocument() {
         StringWriter writer = new StringWriter();
         try {
-            doWrite(writer);
+            doWrite(writer, this.document);
         } catch (Exception e) {
             // just log it
             log.error(e.getMessage(), e);
@@ -203,52 +318,32 @@ public class CSVToXML {
         return writer.toString();
     }
 
-    private void doWrite (Writer writer) throws Exception {
+    private void doWrite (Writer writer, Document document) throws Exception {
         DOMImplementationRegistry registry = DOMImplementationRegistry.newInstance();
         DOMImplementationLS lsImpl = (DOMImplementationLS)registry.getDOMImplementation("LS");
-
         LSSerializer serializer = lsImpl.createLSSerializer();
-        serializer.getDomConfig().setParameter("format-pretty-print", true);            
+        serializer.getDomConfig().setParameter("format-pretty-print", true);
         LSOutput output = lsImpl.createLSOutput();
         output.setCharacterStream(writer);
         serializer.write(document, output);
         writer.flush();
         writer.close();
-
     }
 
     private void logDocument() {
+        logDocument(this.document);
+    }
+
+    private void logDocument(Document document) {
         StringWriter writer = new StringWriter();
         try {
-            doWrite(writer);
+            doWrite(writer, document);
             log.debug(writer.toString());
         } catch (Exception e) {
             log.error("Error logging Document", e);
         }
     }
 
-    private void writeDocument(Map<String, String> data) throws Exception {
-        boolean write = false;
-        if (data == null) {
-            write = true;
-        } else {
-            String documentValue = data.get(this.documentColumn);
-            if (documentValue == null) {
-                throw new NullPointerException ("Document column null for data line: " + data);
-            }
-            if (this.lastDocumentValue == null) {
-                this.lastDocumentValue = documentValue;
-            }
-            if (!this.lastDocumentValue.equals(documentValue)) {
-                write = true;
-            }
-        }
-        if (write) {
-            // do write
-            doWrite(new FileWriter(new File("c:\\temp\\test.xml")));
-            parseXml();
-        }
-    }
     /*
      * Processes the data Map and updates the document as defined by directives
      */
@@ -295,17 +390,15 @@ public class CSVToXML {
                 // ensure we've processed the parent first
                 processDirective(data, node, parentDirective);
             }
-            String parentXpath = parentDirective.getXPathExpression();
-            String propertyName = xpathUtil.getProperty(parentXpath);
-            if (propertyName != null) {
-                // The parent node is a property. That means we have to find an element with the specified property AND
-                // value defined by the parent Directive
-                String parentLocatorPath = xpathUtil.buildLocatorPath(parentDirective, data, directives);
-                NodeList nodes = findNodes(node, parentLocatorPath);
-                // node list; Just assume the first one - don't get technical on this
-                if (nodes != null && nodes.getLength() > 0) {
-                    node = nodes.item(0);
-                }
+            // The parent has been processed, now find the parent node
+            String parentLocatorPath = xpathUtil.buildLocatorPath(parentDirective, data, directives);
+            NodeList nodes = findNodes(node, parentLocatorPath);
+            // node list; Just assume the first one - don't get technical on this
+            if (nodes != null && nodes.getLength() > 0) {
+                node = nodes.item(0);
+            } else {
+                // no parent found! null the node
+                node = null;
             }
             // Now that we have the parentNode specifically, process this directive
         } else {
@@ -318,7 +411,7 @@ public class CSVToXML {
             Node matchedNode = null;
             // Couldn't find an existing node given the xpath. Find the best match.
             if (matchedNode == null) {
-                // don't let the name fool you; it will find existing target/sibling nodes
+                // don't let the name fool you; it will find existing target/sibling nodes, also
                 matchedNode = xpathUtil.findExistingParentNode(node, directive.getXPathExpression());
             }
             node = matchedNode;
@@ -334,6 +427,12 @@ public class CSVToXML {
                 log.debug("Using parent specified by parentElement");
                 node = nodes.item(0);
             }
+        }
+        // if 'node' is null, then the XML template does not have a place for this
+        // directive; Skip it
+        if (node == null) {
+            log.warn("No valid Node found for: " + directive);
+            return;
         }
         processDirectiveInner (data, node, directive);
     }
@@ -377,7 +476,7 @@ public class CSVToXML {
         //
         // If not, append
         if (fallBackToAppend) {
-            NodeList nodeList = xpathUtil.findNodes(toNode, directive.getXPathExpression());
+            NodeList nodeList = xpathUtil.findNodes(toNode, xpathUtil.buildLocatorPath(directive, data, directives));
             Node directiveNode = null;
             if (nodeList.getLength() > 0) {
                 directiveNode = nodeList.item(0);
@@ -476,45 +575,4 @@ public class CSVToXML {
         foundNodes = xpathUtil.findNodes(fromNode, xpath);
         return foundNodes;
     }
-
-    private void poc_process() throws IOException, CSVIllegalOperationException, XPathExpressionException, ClassNotFoundException, InstantiationException, IllegalAccessException, ClassCastException {
-        /*
-         * For tomorrowTrey:
-         * You've got a proof of concept working with this block. Need to now extend it so taht
-         * - the Document is parsed and serialized for each CSVObject
-         * - serialization to LSSerial is to a String instead of directly to a file... well, or does it?
-         * - Do the actual string substitution bit
-         */
-        if (this.directives == null) {
-            buildDirectives();
-        }
-        CSVSourceObject csvSrc = new CSVSourceObject(getFile(this.csvFile), "name");
-        Map<String, Object> csvObj = csvSrc.getNextObject();
-        while (csvObj != null) {
-            System.out.println("csv: " + csvObj);
-            for (Directive directive : this.directives.values()) {
-                System.out.println(directive);
-                XPath xpath = XPathFactory.newInstance().newXPath();
-                XPathExpression expression = xpath.compile(directive.getXPathExpression());
-                Object matchedNodesObj = expression.evaluate(document, XPathConstants.NODESET);
-                NodeList matchedNodes = (NodeList)matchedNodesObj;
-                for (int i = 0; i < matchedNodes.getLength(); i++) {
-                    Node node = matchedNodes.item(i);
-                    System.out.println("node: " + node);
-                    node.setNodeValue("shmegma");
-                }
-            }
-            
-            csvObj = csvSrc.getNextObject();
-        }
-        DOMImplementationRegistry registry = DOMImplementationRegistry.newInstance();
-        DOMImplementationLS lsImpl = (DOMImplementationLS)registry.getDOMImplementation("LS");
-
-        LSSerializer serializer = lsImpl.createLSSerializer();
-        serializer.getDomConfig().setParameter("format-pretty-print", true);            
-        LSOutput output = lsImpl.createLSOutput();
-        output.setCharacterStream(new FileWriter(new File("c:\\temp\\test.out")));
-        serializer.write(document, output);
-    }
-    
 }

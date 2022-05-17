@@ -8,7 +8,15 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-class Directive {
+/**
+ * Describes how the CSVToXML processor handles XML Nodes in conjunction with a provided
+ * data source. The data is a Map of Strings which is expected to be built from CSV. However,
+ * that map may be constructed by any means. Properties will define how a Directive is to
+ * be constructed.
+ * @author trey.kirk
+ *
+ */
+public class Directive {
     
     private String xpathExpression;
     private boolean multi = false;
@@ -63,7 +71,13 @@ class Directive {
         return directives;
     }
 
-    public Directive(String name, Properties properties) {
+    /**
+     * Constructor. A typical implementation would expect the caller to use 
+     * {@link #extractDirectives(Properties)} instead of constructing directly
+     * @param name
+     * @param properties
+     */
+    Directive(String name, Properties properties) {
         this.processed = false;
         this.xpathExpression = properties.getProperty(name + ".xpath");
         String defaultSource = properties.getProperty("source");
@@ -99,7 +113,10 @@ class Directive {
         return this.xpathExpression;
     }
 
-    public boolean isMulti() {
+    /*
+     * I don't think this is useful
+     */
+    private boolean isMulti() {
         return this.multi;
     }
 
@@ -123,6 +140,12 @@ class Directive {
         return this.operation;
     }
 
+    /**
+     * CSVToXML processor needs to mark a Directive as processed in order to avoid
+     * multiple applications. This way it can easily handle parent Directives without
+     * pre-ordering the Directive population.
+     * @return
+     */
     public boolean isProcessed() {
         return this.processed;
     }
@@ -135,6 +158,12 @@ class Directive {
         return this.parentElement;
     }
 
+    /**
+     * Returns the value for this Directive, leveraging the provided dataSource
+     * if necessary.
+     * @param dataSource
+     * @return
+     */
     public String deriveValue(Map<String, String> dataSource) {
         // if the source is set to 'literal', we just return whatever is in 'value'. Otherwise,
         // we use 'value' as the key to find the real value in the data source
