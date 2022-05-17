@@ -17,22 +17,41 @@ class Directive {
     private String value;
     private String name;
     private String parent;
+    private boolean processed;
+    private String parentElement;
 
     public enum Operation {
         update,
         append,
+        appendUnique,
         updateOrAppend;
     }
 
+    /**
+     * Uses the Properties provided to determine the defined directives. When the
+     * property 'directives' is provided, a comma separated list will define the
+     * Directives to build. If not provided, the list is inferred based on the
+     * defined properties, using the 'xpath' sub-property as a key identifier for
+     * directives.
+     * @param properties
+     * @return
+     */
     public static List<Directive> extractDirectives(Properties properties) {
-        Enumeration<String> propertyNames = (Enumeration<String>) properties.propertyNames();
         Set<String> directiveNames = new HashSet<String>();
-        while (propertyNames.hasMoreElements()) {
-            String propertyName = propertyNames.nextElement();
-            String[] tokens = propertyName.split("\\.");
-            // Don't add a directive for the property 'xpath'; that'd be dumb, probably
-            if (tokens.length > 1 && "xpath".equals(tokens[tokens.length - 1])) {
-                directiveNames.add(tokens[0]);
+        String directiveProperty = properties.getProperty("directives");
+        if (directiveProperty != null) {
+            for (String directiveName : directiveProperty.split(",")) {
+                directiveNames.add(directiveName);
+            }
+        } else {
+            Enumeration<String> propertyNames = (Enumeration<String>) properties.propertyNames();
+            while (propertyNames.hasMoreElements()) {
+                String propertyName = propertyNames.nextElement();
+                String[] tokens = propertyName.split("\\.");
+                // Don't add a directive for the property 'xpath'; that'd be dumb, probably
+                if (tokens.length > 1 && "xpath".equals(tokens[tokens.length - 1])) {
+                    directiveNames.add(tokens[0]);
+                }
             }
         }
 
@@ -45,6 +64,7 @@ class Directive {
     }
 
     public Directive(String name, Properties properties) {
+        this.processed = false;
         this.xpathExpression = properties.getProperty(name + ".xpath");
         String defaultSource = properties.getProperty("source");
         String defaultOperation = properties.getProperty("operation");
@@ -72,6 +92,7 @@ class Directive {
         }
         this.parent = properties.getProperty(name + ".parent");
         this.name = name;
+        this.parentElement = properties.getProperty(name + ".parentElement");
     }
 
     public String getXPathExpression() {
@@ -102,6 +123,18 @@ class Directive {
         return this.operation;
     }
 
+    public boolean isProcessed() {
+        return this.processed;
+    }
+
+    public void setProcessed(boolean isProcessed) {
+        this.processed = isProcessed;
+    }
+
+    public String getParentElement() {
+        return this.parentElement;
+    }
+
     public String deriveValue(Map<String, String> dataSource) {
         // if the source is set to 'literal', we just return whatever is in 'value'. Otherwise,
         // we use 'value' as the key to find the real value in the data source
@@ -117,7 +150,7 @@ class Directive {
 
     @Override
     public String toString() {
-        String ret = name + ":" + xpathExpression + ":" + source + ":" + value;
+        String ret = name + ":" + xpathExpression + ":" + operation + ":" + source + ":" + value;
         return ret;
     }
 }

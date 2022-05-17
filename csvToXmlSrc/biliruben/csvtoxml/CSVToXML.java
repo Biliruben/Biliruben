@@ -24,8 +24,10 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.PropertyConfigurator;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.w3c.dom.Text;
 import org.w3c.dom.bootstrap.DOMImplementationRegistry;
 import org.w3c.dom.ls.DOMImplementationLS;
 import org.w3c.dom.ls.LSOutput;
@@ -179,8 +181,15 @@ public class CSVToXML {
                 log.debug("document after CSV processing: ");
                 log.debug(getLogDocument());
             }
+            resetDirectives();
         }
         writeDocument(null);
+    }
+
+    private void resetDirectives() {
+        for (Directive d : this.directives.values()) {
+            d.setProcessed(false);
+        }
     }
 
     private String getLogDocument() {
@@ -246,7 +255,6 @@ public class CSVToXML {
     private void processData (Map<String, String> data, Document document) throws XPathException {
         // iterate over each directive and apply the operation
         for (Directive directive : this.directives.values()) {
-            log.debug("Processing directive: " + directive);
             processDirective (data, document, directive);
         }
     }
@@ -256,6 +264,12 @@ public class CSVToXML {
      * a parent's directive as well
      */
     private void processDirective (Map<String, String> data, Node node, Directive directive) throws XPathException {
+        log.debug("Processing directive: " + directive);
+        if (directive.isProcessed()) {
+            log.debug("Skipping already processed: " + directive);
+            return;
+        }
+        // Determine the parent node we'll attach or find the target node to or in
         String parent = directive.getParent();
         // If there's a parent defined, find the node relating to the parent. Otherwise, just move on
         // processing against the provided Node
@@ -277,51 +291,75 @@ public class CSVToXML {
              * /sailpoint/Identity/Links/Link/Attributes/Map/entry[key='email']
              */
             Directive parentDirective = this.directives.get(parent);
+            if (!parentDirective.isProcessed()) {
+                // ensure we've processed the parent first
+                processDirective(data, node, parentDirective);
+            }
             String parentXpath = parentDirective.getXPathExpression();
             String propertyName = xpathUtil.getProperty(parentXpath);
             if (propertyName != null) {
                 // The parent node is a property. That means we have to find an element with the specified property AND
                 // value defined by the parent Directive
-                String parentElementPath = xpathUtil.getXpathOfElement(parentXpath);
-                NodeList nodes = findNodes(node, parentElementPath, propertyName, parentDirective.deriveValue(data));
+                String parentLocatorPath = xpathUtil.buildLocatorPath(parentDirective, data, directives);
+                NodeList nodes = findNodes(node, parentLocatorPath);
                 // node list; Just assume the first one - don't get technical on this
                 if (nodes != null && nodes.getLength() > 0) {
                     node = nodes.item(0);
                 }
             }
             // Now that we have the parentNode specifically, process this directive
+        } else {
+            // in the first clause, we used the parent directive to determine what node to modify. If
+            // there is no parent node, we sniff out the best choice from the document
+            // find the node to process
+            //
+            // We have to be careful of Elements that are siblings of what's intended to be a new
+            // sibling.
+            Node matchedNode = null;
+            // Couldn't find an existing node given the xpath. Find the best match.
+            if (matchedNode == null) {
+                // don't let the name fool you; it will find existing target/sibling nodes
+                matchedNode = xpathUtil.findExistingParentNode(node, directive.getXPathExpression());
+            }
+            node = matchedNode;
+        }
+        // now that we have a parent node, whatever it is, see if we defined a parentElement to attach to
+        if (directive.getParentElement() != null) {
+            // determine the relative path from 'node' to the parentElement and search in 'node' for that element
+            log.debug("Checking parent element: " + directive.getParentElement());
+            String nodeXpath = xpathUtil.getXpath(node);
+            String relativePath = xpathUtil.diffXpath(directive.getParentElement(), nodeXpath);
+            NodeList nodes = xpathUtil.findNodes(node, relativePath);
+            if (nodes.getLength() > 0) {
+                log.debug("Using parent specified by parentElement");
+                node = nodes.item(0);
+            }
         }
         processDirectiveInner (data, node, directive);
     }
 
     private void processDirectiveInner (Map<String, String> data, Node node, Directive directive) throws XPathException {
 
-        // find the node to process
-        NodeList nodes = findNodes (node, directive.getXPathExpression());
-        // we only want one node
-        // ? But do we? Revisit this later to see if there's value in processing a list of matched nodes.
-        Node matchedNode = null;
-        if (nodes != null && nodes.getLength() > 0) {
-            matchedNode = nodes.item(0);
-        }
-        // Couldn't find an existing node given the xpath. Find the best match.
-        if (matchedNode == null) {
-            matchedNode = xpathUtil.findExistingParentNode(node, directive.getXPathExpression());
-        }
+        // what are we doing here? if node is the Document, the directive spells out where things go
+        // if node is a some other node, we've done the foot work to find the target. 
+        // 
+        // ah, pull all of this up
+        
+        
 
         switch (directive.getOperation()) {
         case append:
-            applyAppend (data, matchedNode, directive);
+            applyAppend (data, node, directive);
             break;
         case update:
             // we need to update the matchedNode
-            applyUpdate (data, matchedNode, directive);
+            applyUpdate (data, node, directive);
             break;
         case updateOrAppend:
-            applyUpdate (data, matchedNode, directive, true);
+            applyUpdate (data, node, directive, true);
             break;
         case appendUnique:
-            applyAppend (data, matchedNode, directive, true);
+            applyAppend (data, node, directive, true);
             break;
         default: throw new IllegalStateException(directive.getOperation() + " is not supported");
         }
@@ -330,6 +368,7 @@ public class CSVToXML {
             log.debug("After directive: " + directive);
             logDocument();
         }
+        directive.setProcessed(true);
     }
 
     private void applyUpdate (Map<String, String> data, Node toNode, Directive directive, boolean fallBackToAppend) throws XPathException {
@@ -366,56 +405,59 @@ public class CSVToXML {
      * well.
      */
     private void applyAppend (Map<String, String> data, Node toNode, Directive directive, boolean unique) throws XPathException {
-        // remind me why I'm doing this work. We already did all the leg work to figure out which
-        // node to append to (toNode). So what is all this work here for?
-        // 
-        // Ok, toNode is the nearest parent. Or it's the target Element. Either way, we just 
-        // create the relative hierarchy. The one catch is if the unique flag is set, in which case
+        // Ok, toNode is the nearest parent. Or it's the target Node. It might even be what should be
+        // a sibling. 
+        // Create the relative hierarchy. The one catch is if the unique flag is set, in which case
         // we need to look in 'toNode' for the xpath we're looking for. To do that, we need
         // the relative path of toNode and directive.getXpath()
-        
-        Node parentNode = toNode;
-        if (toNode instanceof Attr) {
-            parentNode = ((Attr) toNode).getOwnerElement();
-        } else {
-            parentNode = toNode.getParentNode();
-        }
 
         String directiveXpath = directive.getXPathExpression();
         String elementOnlyXpath = xpathUtil.getXpathOfElement(directiveXpath);
-        String parentXpath = xpathUtil.getXpath(parentNode);
+        String toNodeXpath = xpathUtil.getXpath(toNode);
         /*
-        String parentXpath = xpathUtil.findExistingParentXpath(toNode, directiveXpath);
-        if (parentXpath.equals(directive.getXPathExpression())) {
-            // we actually found a sibling. We need the parent element of this element
-            // either we were already an element xpath, or we were an attribute or text. Either way
-            // elementOnlyXpath is the Element of the sibling. We need its parent; drop the last token
-            parentXpath = xpathUtil.dropLastToken(elementOnlyXpath);
+         * Now a little magic to figure out the real target Element.
+         * - if toNode and directiveXpath are identical AND toNode is an Attr
+         *      - we have to create a sibling Element of Attr's owning Element; Unique must be true!
+         *      ! toNode becomes toNode.getOwningElement().getParent().
+         * - if toNode and directiveXpath are different and toNode is an Attr
+         *      - This can't happen. toNode is "the closest parent" we could find; it
+         *        cannot be an Attr and a parent of anything that is not exactly the same
+         * - if toNode and directiveXpath are different and directiveXpath is an Attr
+         *      - Assume the parent correlation has already occurred and toNode is the
+         *        intended parent Element; do nothing
+         */
+        if (toNodeXpath.equals(directiveXpath) && toNode instanceof Attr) {
+            toNode = ((Attr)toNode).getOwnerElement().getParentNode();
+            toNodeXpath = xpathUtil.getXpath(toNode);
         }
-        Node parentNode = xpathUtil.findNodes(toNode, parentXpath).item(0);
-        */
+ 
+        // at this point, toNode must be an Element.
+        if (!(toNode instanceof Element)) {
+            throw new IllegalArgumentException (toNode + " must be type " + Element.class);
+        }
+
         // if 'unique = true', check if the xpath exists in the parentNode. If it does, we're done
         if (unique) {
             String searchXpath = directiveXpath;
             if (!directiveXpath.equals(elementOnlyXpath)) {
                 // use a relative path from the parent path
-                String relativePath = xpathUtil.diffXpath(elementOnlyXpath, parentXpath);
+                String relativePath = xpathUtil.diffXpath(elementOnlyXpath, toNodeXpath);
                 if (relativePath.equals("")) {
                     relativePath = "self::node()";
                 }
                 String lastToken = xpathUtil.getLastToken(directiveXpath);
                 searchXpath = relativePath + "[" + lastToken + "='" + directive.deriveValue(data) + "']";
             }
-            NodeList nodes = findNodes (parentNode, searchXpath);
+            NodeList nodes = findNodes (toNode, searchXpath);
             if (nodes.getLength() > 0) {
                 log.debug("Skipping append for existing xpath: " + directiveXpath);
                 return;
             }
         }
         // now I need to create the hierarchy
-        String relativeXpath = xpathUtil.diffXpath(directive.getXPathExpression(), parentXpath);
+        String relativeXpath = xpathUtil.diffXpath(directive.getXPathExpression(), toNodeXpath);
         if (!relativeXpath.equals("")) {
-            toNode = xpathUtil.createNodeHierarchy(relativeXpath, document, parentNode);
+            toNode = xpathUtil.createNodeHierarchy(relativeXpath, document, toNode);
         }
         toNode.setNodeValue(directive.deriveValue(data));
     }

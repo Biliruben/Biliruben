@@ -3,6 +3,8 @@ package biliruben.csvtoxml;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -14,10 +16,12 @@ import javax.xml.xpath.XPathException;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
 
+import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
 public class XPathUtil {
@@ -64,19 +68,31 @@ public class XPathUtil {
             // shove off w/ that noise
             return forXpathExpression;
         }
-        // "the last token, delimited by /, ends in ()"
-        String functionPattern = "(.*)/\\w+\\(\\)$";
-        // "the last token, delimited by /, starts with @"
-        String propertyPattern = "(.*)/@\\w+$";
-        List<String> patterns = new ArrayList<String>();
-        patterns.add(propertyPattern);
-        patterns.add(functionPattern);
-        for (String patternStr : patterns) {
-            Pattern pattern = Pattern.compile(patternStr);
-            Matcher m = pattern.matcher(forXpathExpression);
-            if (m.matches()) {
-                forXpathExpression = m.group(1);
-            }
+        // regex is too smart; be dumb
+        String[] tokens = forXpathExpression.split("/");
+        String lastToken = tokens[tokens.length - 1];
+        // the last token might currently be an Attr "@id"
+        //  text: "text()"
+        //  or a locator: "element[@id = '123']"
+        //
+        // We are going to build a pattern that simply matches everything
+        // before the non-element data of the last token
+        String patternStr = null;
+        if (lastToken.startsWith("@") || lastToken.endsWith("()")) {
+            // ignore the entire thing
+            patternStr = "(.*)/\\Q" + lastToken + "\\E"; 
+        } else if (lastToken.contains("[")) {
+            // it has (at least) a locator. Just get everything leading up to the first [
+            lastToken = lastToken.substring(0, lastToken.indexOf("["));
+            patternStr = "(.*/\\Q" + lastToken + "\\E).*"; 
+        } else {
+            // it's an element; leave it alone
+            patternStr = "(.*)";
+        }
+        Pattern pattern = Pattern.compile(patternStr);
+        Matcher m = pattern.matcher(forXpathExpression);
+        if (m.matches()) {
+            forXpathExpression = m.group(1);
         }
         return forXpathExpression;
     }
@@ -128,40 +144,99 @@ public class XPathUtil {
         return xpath;
     }
 
-    public String diffXpath (String xpath1, String xpath2) {
-        if (xpath1 == null) throw new NullPointerException ("xpath1 cannot be null");
-        if (xpath2 == null) throw new NullPointerException ("xpath2 cannot be null");
-        // Both paths needs to be reduced to their lowest element paths (they may be 
-        //  parameters or text
-        String xpath1el = getXpathOfElement(xpath1);
-        String last = getLastToken(xpath1);
-        String xpath2el = getXpathOfElement(xpath2);
+    /**
+     * Returns the relative xpath of 'xpath' as compared to 'parentPath'
+     * @param xpath
+     * @param parentPath
+     * @return
+     */
+    public String diffXpath (String xpath, String parentPath) {
+        if (xpath == null) throw new NullPointerException ("xpath cannot be null");
+        if (parentPath == null) throw new NullPointerException ("parentPath cannot be null");
+        // If either path ends with a /, just strip it off; it makes things less complicated
+        if (parentPath.endsWith("/")) {
+            parentPath = parentPath.substring(0, parentPath.length() - 1);
+        }
+        if (xpath.endsWith("/")) {
+            xpath = xpath.substring(0, xpath.length() - 1);
+        }
+        // Get the last token of xpath. If it's a non-element node (like
+        // an Attr), we'll have to tack it on at the end
+        // why?
+        /*
+        String last = getLastToken(xpath);
+        // Now get the xpath of the closest element (which could still
+        // be the current value in xpath)
+        String xpathEl = getXpathOfElement(xpath);
+        */
 
         // returns the relative xpath that differentiates xpaths 1 and 2
-        String specificXpath = xpath1el;
-        String generalXpath = xpath2el;
-        if (xpath2el.length() > xpath1el.length()) {
-            specificXpath = xpath2el;
-            last = getLastToken(xpath2);
-            generalXpath = xpath1el;
+        if (!xpath.startsWith(parentPath)) {
+            throw new IllegalArgumentException (parentPath + " must be a common path of " + xpath);
         }
-        if (specificXpath.equals(generalXpath)) {
-            // empty string for 'no difference'
-            return "";
+        String diffXpath = "";
+        if (!xpath.equals(parentPath)) {
+            diffXpath = xpath.substring(parentPath.length() + 1);
         }
-
-        if (!specificXpath.startsWith(generalXpath)) {
-            throw new IllegalArgumentException (generalXpath + " must be a common path of " + specificXpath);
-        }
-        String diffXpath = specificXpath.substring(generalXpath.length() + 1);
+        /*
         if (last.contains("@") || last.contains("()")) {
             // the last token was a property or text(). That means it got stripped
             // before we did the diff. Tack it back on.
-            diffXpath = diffXpath + "/" + last;
+            if (diffXpath.equals("")) {
+                diffXpath = last;
+            } else {
+                diffXpath = diffXpath + "/" + last;
+            }
         }
+        */
         return diffXpath;
     }
 
+    /**
+     * Uses the provided data source to build a precise locator path, incorporating parent
+     * location data where required.
+     * @param forDirective
+     * @param data
+     * @param directives
+     * @return
+     */
+    public String buildLocatorPath (Directive forDirective, Map<String, String> data, Map<String, Directive> directives) {
+        String myPath = buildLocatorPath(forDirective, data);
+        String myParentName = forDirective.getParent();
+        if (myParentName != null) {
+            Directive myParent = directives.get(myParentName);
+            // convert my path into a relative path to my parent
+            String parentElementPath = getXpathOfElement(myParent.getXPathExpression());
+            String myRelativePath = diffXpath(myPath, parentElementPath);
+            // RECURSION!!!
+            myPath = buildLocatorPath (myParent, data, directives) + "/" + myRelativePath;
+        }
+        return myPath;
+    }
+
+
+    /**
+     * Builds the locator path for just the directive. Does not incorporate any parent
+     * location markers
+     * @param forDirective
+     * @param data
+     * @return
+     */
+    public String buildLocatorPath (Directive forDirective, Map<String, String> data) {
+        String xpath = forDirective.getXPathExpression();
+        String elementPath = getXpathOfElement(xpath);
+        String last = getLastToken(xpath);
+        if (last.startsWith("@")) {
+            // it's a property
+            xpath = elementPath;
+            xpath = xpath + "[" + last + " = '" + forDirective.deriveValue(data) + "']";
+        } else if (last.endsWith("()")) {
+            // text
+            xpath = elementPath;
+            xpath = xpath + "[" + last + " = '"  + forDirective.deriveValue(data) + "'";
+        }
+        return xpath;
+    }
     /**
      * Given a relative xpath and parent Node, create a hierarchy of element 
      * nodes and attach them to the parentNode. The return value is the element
@@ -179,12 +254,17 @@ public class XPathUtil {
             Node node = null;
             if (token.equals("text()"))  {
                 node = document.createTextNode(null);
+                Element parentElement = (Element)parentNode;
+                parentElement.appendChild(node);
             } else if (token.startsWith("@")) {
                 node = document.createAttribute(token.substring(1));
+                Attr att = (Attr)node;
+                Element parentElement = (Element)parentNode;
+                parentElement.setAttributeNode(att);
             } else {
                 node = document.createElement(token);
+                parentNode.appendChild(node);
             }
-            parentNode.appendChild(node);
             parentNode = node;
         }
         // by now, the 'parentNode' is the last Element we created. Aka the lowest child.
@@ -192,25 +272,49 @@ public class XPathUtil {
         return parentNode;
     }
 
+    /**
+     * Builds an xpath expression for the provided node
+     * @param forNode
+     * @return
+     */
+    public String getXpath (Node forNode) {
+        StringBuilder buff = new StringBuilder();
+        Stack<Node> stack = new Stack<Node>();
+        while (forNode != null) {
+            stack.push(forNode);
+            if (forNode instanceof Attr) {
+                forNode = ((Attr)forNode).getOwnerElement();
+            } else {
+                forNode = forNode.getParentNode();
+            }
+        }
+        // Build the path now
+        while (!stack.isEmpty()) {
+            Node stackNode = stack.pop();
+            if (stackNode instanceof Element) {
+                buff.append(stackNode.getNodeName()).append("/");
+            } else if (stackNode instanceof Attr) {
+                buff.append("@" + stackNode.getNodeName());
+            } else if (stackNode instanceof Text) {
+                buff.append("text()");
+            } else if (stackNode instanceof Document) {
+                buff.append("/");
+            } else {
+                // dunno what to do
+                throw new IllegalArgumentException(stackNode + " is unsupported");
+            }
+        }
+        if (buff.charAt(buff.length() - 1) == '/') {
+            buff.deleteCharAt(buff.length() - 1);
+        }
+        return buff.toString();
+    }
+
     public static void main (String[] args) throws SAXException, IOException, ParserConfigurationException, XPathException {
         XPathUtil util = new XPathUtil();
 
-        String baseDir = "C:\\GITRoot\\Biliruben\\csvToXmlSrc\\biliruben\\csvtoxml\\";
-        String xmlFileName = baseDir + "CSVtoXML.xml";
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        factory.setNamespaceAware(true);
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        Document document = builder.parse (xmlFileName);
-
-        String xpath1 = "/sailpoint/Identity/Links/Link/@identity";
-
-        System.out.println("xpath1: " + xpath1);
-        System.out.println("xpath1 parent: " + util.findExistingParentXpath(document, xpath1));
-        String xpath2 = "/sailpoint/Identity/Attributes/Map/entry/value/List/String/text()";
-        String xpath3 = "/sailpoint/Identity/Links/Link/";
+        String xpath2 = "/sailpoint/Identity/Attributes/Map/entry/value/List/String/text[key = 'fart']";
         System.out.println("elementonly xpath2: " + util.getXpathOfElement(xpath2));
-        System.out.println("elementOnly xpath3: " + util.getXpathOfElement(xpath3));
         
         
     }
