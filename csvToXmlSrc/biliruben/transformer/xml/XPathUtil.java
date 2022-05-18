@@ -1,4 +1,4 @@
-package biliruben.csvtoxml;
+package biliruben.transformer.xml;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,6 +24,8 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
+
+import biliruben.transformer.Directive;
 
 public class XPathUtil {
     private XPathFactory factory;
@@ -190,11 +192,10 @@ public class XPathUtil {
      */
     public String buildLocatorPath (Directive forDirective, Map<String, String> data, Map<String, Directive> directives) {
         String myPath = buildLocatorPath(forDirective, data);
-        String myParentName = forDirective.getParent();
-        if (myParentName != null) {
-            Directive myParent = directives.get(myParentName);
+        Directive myParent= forDirective.getParent();
+        if (myParent!= null) {
             // convert my path into a relative path to my parent
-            String parentElementPath = getXpathOfElement(myParent.getXPathExpression());
+            String parentElementPath = getXpathOfElement(myParent.getPath());
             String myRelativePath = diffXpath(myPath, parentElementPath);
             // RECURSION!!!
             myPath = buildLocatorPath (myParent, data, directives) + "/" + myRelativePath;
@@ -211,7 +212,7 @@ public class XPathUtil {
      * @return
      */
     public String buildLocatorPath (Directive forDirective, Map<String, String> data) {
-        String xpath = forDirective.getXPathExpression();
+        String xpath = forDirective.getPath();
         String elementPath = getXpathOfElement(xpath);
         String last = getLastToken(xpath);
         if (last.startsWith("@")) {

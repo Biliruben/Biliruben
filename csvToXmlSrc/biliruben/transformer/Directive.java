@@ -1,7 +1,8 @@
-package biliruben.csvtoxml;
+package biliruben.transformer;
 
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -18,15 +19,16 @@ import java.util.Set;
  */
 public class Directive {
     
-    private String xpathExpression;
+    private String path;
     private boolean multi = false;
     private String source;
     private Operation operation;
     private String value;
     private String name;
-    private String parent;
+    private String parentName;
     private boolean processed;
     private String parentElement;
+    private Directive parent;
 
     public enum Operation {
         update,
@@ -39,36 +41,48 @@ public class Directive {
      * Uses the Properties provided to determine the defined directives. When the
      * property 'directives' is provided, a comma separated list will define the
      * Directives to build. If not provided, the list is inferred based on the
-     * defined properties, using the 'xpath' sub-property as a key identifier for
+     * defined properties, using the 'path' sub-property as a key identifier for
      * directives.
      * @param properties
      * @return
      */
-    public static List<Directive> extractDirectives(Properties properties) {
+    public static List<Directive> extractDirectives(Map properties) {
         Set<String> directiveNames = new HashSet<String>();
-        String directiveProperty = properties.getProperty("directives");
+        String directiveProperty = (String)properties.get(Constants.PROPERTY_DIRECTIVES);
         if (directiveProperty != null) {
             for (String directiveName : directiveProperty.split(",")) {
                 directiveNames.add(directiveName);
             }
         } else {
-            Enumeration<String> propertyNames = (Enumeration<String>) properties.propertyNames();
-            while (propertyNames.hasMoreElements()) {
-                String propertyName = propertyNames.nextElement();
+            for (Object propertyNameObj : properties.keySet()) {
+                String propertyName = (String)propertyNameObj;
                 String[] tokens = propertyName.split("\\.");
-                // Don't add a directive for the property 'xpath'; that'd be dumb, probably
-                if (tokens.length > 1 && "xpath".equals(tokens[tokens.length - 1])) {
+                // Don't add a directive for the property 'path'; that'd be dumb, probably
+                if (tokens.length > 1 && Constants.PROPERTY_XPATH.equals(tokens[tokens.length - 1])) {
                     directiveNames.add(tokens[0]);
                 }
             }
         }
 
-        List<Directive> directives = new ArrayList<Directive>();
+        Map<String, Directive> directives = new HashMap<String, Directive>();
         for (String directiveName : directiveNames) {
             Directive d = new Directive (directiveName, properties);
-            directives.add(d);
+            directives.put(directiveName, d);
         }
-        return directives;
+        // now correlate the parents
+        for (Directive directive : directives.values()) {
+            String parentName = directive.getParentName();
+            if (parentName != null) {
+                Directive parentDirective = directives.get(parentName);
+                directive.setParent(parentDirective);
+            }
+        }
+
+        return new ArrayList<Directive>(directives.values());
+    }
+
+    private void setParent(Directive parentDirective) {
+        this.parent = parentDirective;
     }
 
     /**
@@ -77,40 +91,51 @@ public class Directive {
      * @param name
      * @param properties
      */
-    Directive(String name, Properties properties) {
+    Directive(String name, Map properties) {
         this.processed = false;
-        this.xpathExpression = properties.getProperty(name + ".xpath");
-        String defaultSource = properties.getProperty("source");
-        String defaultOperation = properties.getProperty("operation");
+        this.path = (String)properties.get(name + "." + Constants.PROPERTY_XPATH);
+        String defaultSource = (String)properties.get(Constants.PROPERTY_SOURCE);
+        String defaultOperation = (String)properties.get(Constants.PROPERTY_OPERATION);
         
-        if (this.xpathExpression == null) {
-            throw new NullPointerException ("Null XPath defined for directive " + name);
+        if (this.path == null) {
+            throw new NullPointerException ("Null Path defined for directive " + name);
         }
-        String multiStr = properties.getProperty(name + ".multi", "false");
+
+        String multiStr = (String)properties.get(name + "." + Constants.PROPERTY_MULTI);
+        if (multiStr == null) {
+            multiStr = "false";
+        }
         // truthy is 'true' and 'yes'; Everything else is falsey
         if (multiStr.equalsIgnoreCase("true") || multiStr.equalsIgnoreCase("yes")) {
             this.multi = true;
         }
-        this.source = properties.getProperty(name + ".source", defaultSource);
+        this.source = (String)properties.get(name + "." + Constants.PROPERTY_SOURCE);
+        if (this.source == null) {
+            this.source = defaultSource;
+        }
         if (this.source == null) {
             throw new NullPointerException ("Null source for directive " + name);
         }
-        String opVal = properties.getProperty(name + ".operation", defaultOperation);
+
+        String opVal = (String)properties.get(name + "." + Constants.PROPERTY_OPERATION);
+        if (opVal == null) {
+            opVal = defaultOperation;
+        }
         if (opVal == null) {
             throw new NullPointerException ("Null operation for directive " + name);
         }
         this.operation = Operation.valueOf(opVal);
-        this.value = properties.getProperty(name + ".value");
+        this.value = (String)properties.get(name + "." + Constants.PROPERTY_VALUE);
         if (this.value == null) {
             throw new NullPointerException ("Null value for directive " + name);
         }
-        this.parent = properties.getProperty(name + ".parent");
+        this.parentName = (String)properties.get(name + "." + Constants.PROPERTY_PARENT);
         this.name = name;
-        this.parentElement = properties.getProperty(name + ".parentElement");
+        this.parentElement = (String)properties.get(name + "." + Constants.PROPERTY_PARENT_PATH);
     }
 
-    public String getXPathExpression() {
-        return this.xpathExpression;
+    public String getPath() {
+        return this.path;
     }
 
     /*
@@ -132,8 +157,12 @@ public class Directive {
         return this.name;
     }
 
-    public String getParent() {
+    public Directive getParent() {
         return this.parent;
+    }
+
+    public String getParentName() {
+        return this.parentName;
     }
 
     public Operation getOperation() {
@@ -168,9 +197,9 @@ public class Directive {
         // if the source is set to 'literal', we just return whatever is in 'value'. Otherwise,
         // we use 'value' as the key to find the real value in the data source
         // As we add more sources, this might have to be smarter
-        if ("literal".equalsIgnoreCase(this.source)) {
+        if (Constants.VALUE_LITERAL.equalsIgnoreCase(this.source)) {
             return this.value;
-        } else if ("csv".equalsIgnoreCase(this.source)) {
+        } else if (Constants.VALUE_DATA_SOURCE.equalsIgnoreCase(this.source)) {
             return dataSource.get(this.value);
         }
         // what are you doing here?
@@ -179,7 +208,7 @@ public class Directive {
 
     @Override
     public String toString() {
-        String ret = name + ":" + xpathExpression + ":" + operation + ":" + source + ":" + value;
+        String ret = name + ":" + path + ":" + operation + ":" + source + ":" + value;
         return ret;
     }
 }

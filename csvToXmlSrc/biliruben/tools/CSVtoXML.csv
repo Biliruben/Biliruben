@@ -1,6 +1,9 @@
-name, linkDisplayName, linkNativeIdentity, application, email, multiValueDataText
-bob,bob1,cn=bob1,AD,bob1@email.com,derp
-bob,bob1,cn=bob1,AD,bob1@email.com,flerp
-bob,bob2,cn=bob2,AD,bob2@email.com,hi
-bob,bob2,cn=bob2,AD,bob2@email.com,suckit
-sally,sally1,cn=sally,Fart,sally@email.com,hai!
+name,displayName,linkDisplayName,linkNativeIdentity,application,email,multiValueDataText
+bob,Bob Ross,bob1,cn=bob1,AD,bob1@email.com,derp
+bob,Bob Ross,bob1,cn=bob1,AD,bob1@email.com,flerp
+bob,Bob Ross,bob2,cn=bob2,LDAP,bob2@email.com,hi
+bob,Bob Ross,bob2,cn=bob2,LDAP,bob2@email.com,suckit
+sally,Sally Ross,sally1,cn=sally1,AD,sally1@email.com,derp
+sally,Sally Ross,sally1,cn=sally1,AD,sally1@email.com,flerp
+sally,Sally Ross,sally2,cn=sally2,LDAP,sally2@email.com,hi
+sally,Sally Ross,sally2,cn=sally2,LDAP,sally2@email.com,suckit

@@ -8,13 +8,6 @@
         <entry key="displayName" value="!!!!"/>
       </Map>
     </Attributes>
-    <Links>
-      <Link displayName="!!!!" entitlements="true" identity="!!!!">
-        <ApplicationRef>
-          <Reference class="sailpoint.object.Application" name="!!!!"/>
-        </ApplicationRef>
-        <Attributes/>
-      </Link>
-    </Links>
+    <Links/>
   </Identity>
 </sailpoint>
