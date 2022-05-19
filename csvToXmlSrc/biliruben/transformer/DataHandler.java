@@ -13,4 +13,6 @@ public interface DataHandler {
     public void validateDirective(Directive directive);
 
     public void setProcessor(DataProcessor processor);
+
+    public void preProcess();
 }

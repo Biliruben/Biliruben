@@ -18,6 +18,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
+import org.w3c.dom.DocumentType;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -37,15 +38,24 @@ public class DocumentHandler extends AbstractHandler<Node> {
     private Document workingDocument;
     private XPathUtil xpathUtil;
     private Document templateDocument;
-    private Directive documentDirective;
     private String xmlTemplateFileName;
     private static Log log = LogFactory.getLog(DocumentHandler.class);
     
     public DocumentHandler(String xmlTemplate) throws Exception {
         // build templateDocument
         this.xmlTemplateFileName = xmlTemplate;
-        parseXml();
-        this.workingDocument = cloneFromDocument(this.templateDocument);
+        this.xpathUtil = new XPathUtil();
+        this.templateDocument = parseXml();
+    }
+
+    public void preProcess() {
+        try {
+            //this.workingDocument = cloneFromDocument(this.templateDocument);
+            this.workingDocument = cloneTemplate();
+        } catch (Exception e) {
+            // Convert any Exception into a Runtime and bale
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -65,7 +75,7 @@ public class DocumentHandler extends AbstractHandler<Node> {
             this.workingDocument.adoptNode(processedNode);
             newParentNode.appendChild(processedNode);
             // resets the document
-            parseXml();
+            this.templateDocument = parseXml();
         } catch (Exception e) {
             throw new TransformException (e);
         }
@@ -281,10 +291,9 @@ public class DocumentHandler extends AbstractHandler<Node> {
         return writer.toString();
     }
 
-    private void parseXml() throws IOException {
-        this.templateDocument = DOMWrapper.parseXml(getFile(this.xmlTemplateFileName)).getDomObj();
+    private Document parseXml() throws IOException {
+        return DOMWrapper.parseXml(getFile(this.xmlTemplateFileName)).getDomObj();
     }
-
 
     public void writeDocument(Writer writer) throws Exception {
         doWrite (writer, this.workingDocument);
@@ -302,6 +311,20 @@ public class DocumentHandler extends AbstractHandler<Node> {
         writer.close();
     }
 
+    // Clones the Template XML by parsing it and removing the document object (i.e. the 
+    // template data). The result is an "empty" document
+    private Document cloneTemplate() throws XPathException, IOException {
+        Document clone = parseXml();
+        // This is a full clone of the source Document, which has template datat in it. So the next
+        // step is to REMOVE any node(s?) defined in our properties as the document node
+        Node docNode = getDocumentNode(clone);
+        // This node isn't likely to be the root node. So we need to remove it from its immediate parent
+        // Element
+        docNode.getParentNode().removeChild(docNode);
+        // We would like to preserve the doctype
+        return clone;
+    }
+
     private Document cloneFromDocument(Document document) throws TransformerException, XPathException {
         TransformerFactory tfactory = TransformerFactory.newInstance();
         Transformer tx = tfactory.newTransformer();
@@ -309,12 +332,19 @@ public class DocumentHandler extends AbstractHandler<Node> {
         DOMResult result = new DOMResult();
         tx.transform(src, result);
         Document clone = (Document)result.getNode();
+        DocumentType docType = document.getDoctype();
+        src = new DOMSource(docType);
+        result = new DOMResult();
+        tx.transform(src, result);
+        DocumentType cloneDocType = (DocumentType)result.getNode();
+        clone.adoptNode(cloneDocType);
         // This is a full clone of the source Document, which has template datat in it. So the next
         // step is to REMOVE any node(s?) defined in our properties as the document node
         Node docNode = getDocumentNode(clone);
         // This node isn't likely to be the root node. So we need to remove it from its immediate parent
         // Element
         docNode.getParentNode().removeChild(docNode);
+        // We would like to preserve the doctype
         return clone;
     }
 
@@ -322,7 +352,7 @@ public class DocumentHandler extends AbstractHandler<Node> {
      * Returns the Node specified by the documentDirective xpath
      */
     private Node getDocumentNode(Document fromDocument) throws XPathException {
-        String elementXpath = xpathUtil.getXpathOfElement(this.documentDirective.getPath());
+        String elementXpath = xpathUtil.getXpathOfElement(this.processor.getDocumentDirective().getPath());
         // null doc nodes are not allowed. So just let an NPE fly if it happens
         // (BAD PROGRAMMER!)
         Node docNode = xpathUtil.findNodes(fromDocument, elementXpath).item(0);

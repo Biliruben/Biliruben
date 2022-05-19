@@ -1,22 +1,19 @@
 package biliruben.transformer.xml;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathException;
 import javax.xml.xpath.XPathExpression;
-import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -29,6 +26,7 @@ import biliruben.transformer.Directive;
 
 public class XPathUtil {
     private XPathFactory factory;
+    private static Log log = LogFactory.getLog(XPathUtil.class);
     
     public XPathUtil() {
         this.factory = XPathFactory.newInstance();
@@ -212,6 +210,7 @@ public class XPathUtil {
      * @return
      */
     public String buildLocatorPath (Directive forDirective, Map<String, String> data) {
+        log.debug("Building locatorPath (data = " + data + ", forDirective = " + forDirective);
         String xpath = forDirective.getPath();
         String elementPath = getXpathOfElement(xpath);
         String last = getLastToken(xpath);
@@ -224,6 +223,7 @@ public class XPathUtil {
             xpath = elementPath;
             xpath = xpath + "[" + last + " = '"  + forDirective.deriveValue(data) + "'";
         }
+        log.debug("xpath: " + xpath);
         return xpath;
     }
     /**

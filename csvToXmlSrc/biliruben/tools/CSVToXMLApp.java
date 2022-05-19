@@ -2,6 +2,7 @@ package biliruben.tools;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 
@@ -37,8 +38,10 @@ public class CSVToXMLApp {
         proc.process();
         String outputFile = opts.getStr(OPT_OUT_FILE);
         Writer writer = new StringWriter();
-        if (outputFile == null || "".equals(outputFile.trim())) {
+        if (!(outputFile == null || "".equals(outputFile.trim()))) {
             writer = new FileWriter(new File(outputFile));
+        } else {
+            writer = new PrintWriter(System.out);
         }
         handler.writeDocument(writer);
     }

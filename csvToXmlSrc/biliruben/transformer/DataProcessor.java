@@ -1,13 +1,11 @@
 package biliruben.transformer;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
-import java.util.TreeSet;
 
 import javax.naming.OperationNotSupportedException;
 
@@ -32,6 +30,7 @@ public class DataProcessor {
     private static Log log = LogFactory.getLog(DataProcessor.class);
 
     public DataProcessor (Map properties, Iterable<Map<String, String>> dataSource, DataHandler handler) {
+        handler.setProcessor(this);
         this.dataSource = dataSource;
         this.handler = handler;
         this.properties = properties;
@@ -71,7 +70,7 @@ public class DataProcessor {
     }
 
     private void validateParents(Directive directive) {
-        TreeSet<Directive> parents = new TreeSet<Directive>();
+        HashSet<Directive> parents = new HashSet<Directive>();
         Directive ogDirective = directive;
         while (directive.getParent() != null) {
             Directive thisParent = directive.getParent();
@@ -85,6 +84,7 @@ public class DataProcessor {
     }
 
     private void buildDirectives() throws FileNotFoundException, IOException {
+        log.debug("Building directives from: " + this.properties);
         List<Directive> directiveList = Directive.extractDirectives(this.properties);
         this.directives = new HashMap<String, Directive>();
         for (Directive d : directiveList) {
@@ -99,7 +99,7 @@ public class DataProcessor {
             if (this.directives == null) {
                 buildDirectives();
             }
-
+            this.handler.preProcess();
             Map<String, String> lastData = null;
             for (Map<String, String> data : this.dataSource) {
                 if (lastData == null) {

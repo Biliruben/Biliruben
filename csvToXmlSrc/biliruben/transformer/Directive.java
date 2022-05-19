@@ -1,13 +1,15 @@
 package biliruben.transformer;
 
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 /**
  * Describes how the CSVToXML processor handles XML Nodes in conjunction with a provided
@@ -21,7 +23,7 @@ public class Directive {
     
     private String path;
     private boolean multi = false;
-    private String source;
+    private Source source;
     private Operation operation;
     private String value;
     private String name;
@@ -30,6 +32,8 @@ public class Directive {
     private String parentElement;
     private Directive parent;
 
+    private static Log log = LogFactory.getLog(Directive.class);
+
     public enum Operation {
         update,
         append,
@@ -37,6 +41,10 @@ public class Directive {
         updateOrAppend;
     }
 
+    public enum Source {
+        literal,
+        data
+    }
     /**
      * Uses the Properties provided to determine the defined directives. When the
      * property 'directives' is provided, a comma separated list will define the
@@ -46,27 +54,33 @@ public class Directive {
      * @param properties
      * @return
      */
-    public static List<Directive> extractDirectives(Map properties) {
+    public static List<Directive> extractDirectives(Map<String, Object> properties) {
         Set<String> directiveNames = new HashSet<String>();
         String directiveProperty = (String)properties.get(Constants.PROPERTY_DIRECTIVES);
+        log.debug("directiveProperty: " + directiveProperty);
         if (directiveProperty != null) {
+            log.debug("Building user specified");
             for (String directiveName : directiveProperty.split(",")) {
                 directiveNames.add(directiveName);
             }
         } else {
+            log.debug("Discovering");
             for (Object propertyNameObj : properties.keySet()) {
-                String propertyName = (String)propertyNameObj;
-                String[] tokens = propertyName.split("\\.");
-                // Don't add a directive for the property 'path'; that'd be dumb, probably
-                if (tokens.length > 1 && Constants.PROPERTY_XPATH.equals(tokens[tokens.length - 1])) {
-                    directiveNames.add(tokens[0]);
+                Object directivePropertiesObj = properties.get(propertyNameObj);
+                if (directivePropertiesObj != null && directivePropertiesObj instanceof Map) {
+                    // every directive must have a path defined, so that's our key
+                    String path = (String) ((Map)directivePropertiesObj).get(Constants.PROPERTY_XPATH);
+                    if (path != null) {
+                        directiveNames.add((String) propertyNameObj);
+                    }
                 }
             }
         }
 
         Map<String, Directive> directives = new HashMap<String, Directive>();
         for (String directiveName : directiveNames) {
-            Directive d = new Directive (directiveName, properties);
+            Directive d = new Directive (directiveName, (Map<String, String>)properties.get(directiveName));
+            log.debug("Built:" + d);
             directives.put(directiveName, d);
         }
         // now correlate the parents
@@ -78,6 +92,7 @@ public class Directive {
             }
         }
 
+        log.debug ("Extracted directives: " + directives.values());
         return new ArrayList<Directive>(directives.values());
     }
 
@@ -91,9 +106,9 @@ public class Directive {
      * @param name
      * @param properties
      */
-    Directive(String name, Map properties) {
+    Directive(String name, Map<String, String> properties) {
         this.processed = false;
-        this.path = (String)properties.get(name + "." + Constants.PROPERTY_XPATH);
+        this.path = (String)properties.get(Constants.PROPERTY_XPATH);
         String defaultSource = (String)properties.get(Constants.PROPERTY_SOURCE);
         String defaultOperation = (String)properties.get(Constants.PROPERTY_OPERATION);
         
@@ -101,7 +116,7 @@ public class Directive {
             throw new NullPointerException ("Null Path defined for directive " + name);
         }
 
-        String multiStr = (String)properties.get(name + "." + Constants.PROPERTY_MULTI);
+        String multiStr = (String)properties.get(Constants.PROPERTY_MULTI);
         if (multiStr == null) {
             multiStr = "false";
         }
@@ -109,15 +124,16 @@ public class Directive {
         if (multiStr.equalsIgnoreCase("true") || multiStr.equalsIgnoreCase("yes")) {
             this.multi = true;
         }
-        this.source = (String)properties.get(name + "." + Constants.PROPERTY_SOURCE);
-        if (this.source == null) {
-            this.source = defaultSource;
+        String source = (String)properties.get(Constants.PROPERTY_SOURCE);
+        if (source == null) {
+            source = defaultSource;
         }
-        if (this.source == null) {
+        if (source == null) {
             throw new NullPointerException ("Null source for directive " + name);
         }
+        this.source = Source.valueOf(source);
 
-        String opVal = (String)properties.get(name + "." + Constants.PROPERTY_OPERATION);
+        String opVal = (String)properties.get(Constants.PROPERTY_OPERATION);
         if (opVal == null) {
             opVal = defaultOperation;
         }
@@ -125,13 +141,13 @@ public class Directive {
             throw new NullPointerException ("Null operation for directive " + name);
         }
         this.operation = Operation.valueOf(opVal);
-        this.value = (String)properties.get(name + "." + Constants.PROPERTY_VALUE);
+        this.value = (String)properties.get(Constants.PROPERTY_VALUE);
         if (this.value == null) {
             throw new NullPointerException ("Null value for directive " + name);
         }
-        this.parentName = (String)properties.get(name + "." + Constants.PROPERTY_PARENT);
+        this.parentName = (String)properties.get(Constants.PROPERTY_PARENT);
         this.name = name;
-        this.parentElement = (String)properties.get(name + "." + Constants.PROPERTY_PARENT_PATH);
+        this.parentElement = (String)properties.get(Constants.PROPERTY_PARENT_PATH);
     }
 
     public String getPath() {
@@ -145,7 +161,7 @@ public class Directive {
         return this.multi;
     }
 
-    public String getSource() {
+    public Source getSource() {
         return this.source;
     }
 
@@ -194,16 +210,21 @@ public class Directive {
      * @return
      */
     public String deriveValue(Map<String, String> dataSource) {
+        log.debug("Deriving value\nFrom dataSource: " + dataSource + "\nfor Directive: " + this);
+        String value = null;
         // if the source is set to 'literal', we just return whatever is in 'value'. Otherwise,
         // we use 'value' as the key to find the real value in the data source
         // As we add more sources, this might have to be smarter
-        if (Constants.VALUE_LITERAL.equalsIgnoreCase(this.source)) {
-            return this.value;
-        } else if (Constants.VALUE_DATA_SOURCE.equalsIgnoreCase(this.source)) {
-            return dataSource.get(this.value);
+        switch (this.source) {
+        case data:
+            value = dataSource.get(this.value);
+            break;
+        case literal:
+            value = this.value;
+            break;
         }
-        // what are you doing here?
-        return null;
+        log.debug("Derived value: " + value);
+        return value;
     }
 
     @Override
