@@ -24,9 +24,15 @@ import org.xml.sax.SAXException;
 
 import biliruben.transformer.Directive;
 
+/**
+ * Utility to handle enough XPath operations in order to make {@link biliruben.transformer.xml.DocumentHandler} work
+ * @author trey.kirk
+ *
+ */
 public class XPathUtil {
     private XPathFactory factory;
     private static Log log = LogFactory.getLog(XPathUtil.class);
+    public static String SELF_PATH = "self::node()";
     
     public XPathUtil() {
         this.factory = XPathFactory.newInstance();
@@ -201,6 +207,15 @@ public class XPathUtil {
         return myPath;
     }
 
+    /**
+     * Appends the xpath with the locator syntax for the provided property. propertyName may
+     * be bare or preprended with '@'
+     */
+    public String appendLocatorPath (String xpath, String propertyName, String propertyValue) {
+        String bareName = propertyName.replaceFirst("^@", "");
+        String propertyXpath = xpath + "[@" + bareName + "='" + propertyValue +"']";
+        return propertyXpath;
+    }
 
     /**
      * Builds the locator path for just the directive. Does not incorporate any parent

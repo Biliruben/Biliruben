@@ -7,7 +7,6 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Properties;
 
-import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.PropertyConfigurator;
 
 import com.biliruben.util.GetOpts;
@@ -26,6 +25,8 @@ public class CSVToXMLApp {
     private static final String OPT_XML_FILE = "xmlFile";
     private static final String LOG4J_PROPERTIES = "log4j.properties";
     private static GetOpts opts;
+
+    private static final String DEFAULT_LOG_LEVEL = "warn";
 
     public static void main(String[] args) throws Exception {
 
@@ -64,11 +65,10 @@ public class CSVToXMLApp {
             props.setProperty("log4j.appender.stdout.Target","System.out");
             props.setProperty("log4j.appender.stdout.layout","org.apache.log4j.PatternLayout");
             props.setProperty("log4j.appender.stdout.layout.ConversionPattern","%d{ISO8601} %5p %t %c{4}:%L - %m%n");
-            props.setProperty("log4j.rootLogger","debug,stdout");
+            props.setProperty("log4j.rootLogger", DEFAULT_LOG_LEVEL + ",stdout");
 
             PropertyConfigurator.configure(props);
         }
-        LogFactory.getLog(CSVToXMLApp.class).warn("oh, hai!");
     }
 
     private static void init(String[] args) {

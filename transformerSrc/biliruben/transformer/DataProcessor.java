@@ -13,10 +13,13 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 /**
- * Given a CSV file, an XML template, and a set of Directive Properties, create a new XML file with each CSV object
- * represented as an XML object.
+ * Processes a data source, normalized as a Iterable of Map<String, String>. Each Map<String, String> is processed
+ * against a collection of Directives which describe how to apply that data to a target document. A DataHandler
+ * will be tasked with applying the Diretive to the target format. For example, given a CSV file and an XML DataHandler,
+ * one may use a template XML file in order to create a series of XML "documents", each populated with data from
+ * the CSV file.
  * @author trey.kirk
- *
+ * @see {@link CSVtoXML}
  */
 public class DataProcessor {
 

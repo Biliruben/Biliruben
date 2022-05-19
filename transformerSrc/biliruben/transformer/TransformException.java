@@ -10,4 +10,8 @@ public class TransformException extends Exception {
     public TransformException(Exception causedBy) {
         super(causedBy);
     }
+
+    public TransformException(String message) {
+        super(message);
+    }
 }

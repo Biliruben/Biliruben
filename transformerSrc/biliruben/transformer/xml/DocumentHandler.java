@@ -34,14 +34,42 @@ import biliruben.transformer.AbstractHandler;
 import biliruben.transformer.Directive;
 import biliruben.transformer.TransformException;
 
+/**
+ * XML object handler. Uses a template XML to layout the overall structure of the target object(s)
+ * with properties, elements, and other nodes. Directives may describe new elements as well as
+ * updating existing nodes.
+ * @author trey.kirk
+ *
+ */
 public class DocumentHandler extends AbstractHandler<Node> {
 
+    /*
+     * The Document we'll be building, add to as described by the data source
+     */
     private Document workingDocument;
+    
+    /*
+     * Utility object for Xpath operations
+     */
     private XPathUtil xpathUtil;
+    
+    /*
+     * The template Document we'll build our resulting objects from
+     */
     private Document templateDocument;
+    
+    /*
+     * The template Document filename. We hang on to this since resetting the template
+     * document requires us to re-parse the source file.
+     */
     private String xmlTemplateFileName;
+    
+    /*
+     * It's better than bad, it's good!
+     */
     private static Log log = LogFactory.getLog(DocumentHandler.class);
     
+
     public DocumentHandler(String xmlTemplate) throws Exception {
         // build templateDocument
         this.xmlTemplateFileName = xmlTemplate;
@@ -49,6 +77,10 @@ public class DocumentHandler extends AbstractHandler<Node> {
         this.templateDocument = parseXml();
     }
 
+    /**
+     * Callback from the Processor. Allows us to do any setup work that we couldn't handle in the constructor
+     */
+    @Override
     public void preProcess() {
         try {
             //this.workingDocument = cloneFromDocument(this.templateDocument);
@@ -59,6 +91,10 @@ public class DocumentHandler extends AbstractHandler<Node> {
         }
     }
 
+    /**
+     * Called by the processor when a new object has been reached and the current has to be "written"
+     * @throws TransformException
+     */
     @Override
     public void flushObject() throws TransformException {
         try {
@@ -73,8 +109,19 @@ public class DocumentHandler extends AbstractHandler<Node> {
                 // the parent node will be the document
                 newParentNode = this.workingDocument;
             }
-            this.workingDocument.adoptNode(processedNode);
-            newParentNode.appendChild(processedNode);
+            /*
+             * Imma leave this bullshit here so I remember the pain. Why not 
+             * adoptNode? Because adoptNode will discard default values and only preserve
+             * the ones the 'processedNode' explicitly set. If one were to have serialized
+             * 'processedNode' prior to this operation, all values would suddenly be set
+             * and nobody would be none the wiser. In practice, this meant if I didn't have
+             * l4j set at DEBUG, the workingDocument would get empty Attribute values for
+             * those that weren't explicitly set by a directive.
+             * How dumb is that?
+             */
+            //this.workingDocument.adoptNode(processedNode);
+            Node importedNode = this.workingDocument.importNode(processedNode, true);
+            newParentNode.appendChild(importedNode);
             // resets the document
             this.templateDocument = parseXml();
         } catch (Exception e) {
@@ -82,27 +129,34 @@ public class DocumentHandler extends AbstractHandler<Node> {
         }
     }
 
+    /**
+     * Validates the Directive. This handler requires that the 'path' property can
+     * successfully be compiled.
+     * @param directive
+     */
     @Override
     public void validateDirective(Directive directive) {
         try {
-            xpathUtil.compile(directive.getPath());
+            String path = directive.getPath();
+            if ("".equals(path.trim())) {
+                // "" isn't an xPath that compiles. But we'd like the Directive
+                // define a path that is easy to work with when treated as a relative
+                // path. So allow the Directive definition to be lax in its syntax
+                // and we'll just pivot as required
+                path = XPathUtil.SELF_PATH;
+            }
+            xpathUtil.compile(path);
         } catch (XPathException xp) {
             throw new IllegalArgumentException ("Error parsing XPath for " + directive, xp);
         }
     }
     
-    private File getFile(String fileName) throws FileNotFoundException {
-        File file = new File(fileName);
-        if (!file.exists()) {
-            throw new FileNotFoundException(fileName);
-        }
-        return file;
-    }
-
+    @Override
     protected void applyUpdate (Map<String, String> data, Node toNode, Directive directive) throws TransformException {
         applyUpdate (data, toNode, directive, false);
     }
 
+    @Override
     protected void applyUpdate (Map<String, String> data, Node toNode, Directive directive, boolean fallBackToAppend) throws TransformException {
         try {
             if (fallBackToAppend) {
@@ -128,6 +182,7 @@ public class DocumentHandler extends AbstractHandler<Node> {
         }
     }
 
+    @Override
     protected void applyAppend (Map<String, String> data, Node toNode, Directive directive) throws TransformException {
         applyAppend (data, toNode, directive, false);
     }
@@ -135,6 +190,7 @@ public class DocumentHandler extends AbstractHandler<Node> {
      * Add whatever node defined by the xpath to the target node. Any inferred hierarchy will be created as
      * well.
      */
+    @Override
     protected void applyAppend (Map<String, String> data, Node toNode, Directive directive, boolean unique) throws TransformException {
         try {
             // Ok, toNode is the nearest parent. Or it's the target Node. It might even be what should be
@@ -175,10 +231,11 @@ public class DocumentHandler extends AbstractHandler<Node> {
                     // use a relative path from the parent path
                     String relativePath = xpathUtil.diffXpath(elementOnlyXpath, toNodeXpath);
                     if (relativePath.equals("")) {
-                        relativePath = "self::node()";
+                        relativePath = XPathUtil.SELF_PATH;
                     }
                     String lastToken = xpathUtil.getLastToken(directiveXpath);
-                    searchXpath = relativePath + "[" + lastToken + "='" + directive.deriveValue(data) + "']";
+                    searchXpath = xpathUtil.appendLocatorPath(relativePath, lastToken, directive.deriveValue(data));
+                    //searchXpath = relativePath + "[" + lastToken + "='" + directive.deriveValue(data) + "']";
                 }
                 NodeList nodes = findNodes (toNode, searchXpath);
                 if (nodes.getLength() > 0) {
@@ -206,7 +263,8 @@ public class DocumentHandler extends AbstractHandler<Node> {
         if (property != null) {
             xpath = this.xpathUtil.getXpathOfElement(xpath);
             // update the the xpath to use the property/value pair as a filter
-            xpath = xpath + "[@" + property + "='" + value + "']";
+            xpath = xpathUtil.appendLocatorPath(xpath, property, value);
+            //xpath = xpath + "[@" + property + "='" + value + "']";
         }
         foundNodes = xpathUtil.findNodes(fromNode, xpath);
         return foundNodes;
@@ -267,11 +325,7 @@ public class DocumentHandler extends AbstractHandler<Node> {
         return node;
     }
 
-    private void logDocument() {
-        logDocument(this.templateDocument);
-    }
-
-    private void logDocument(Document document) {
+    private void logDocument(Node document) {
         StringWriter writer = new StringWriter();
         try {
             doWrite(writer, document);
@@ -281,10 +335,11 @@ public class DocumentHandler extends AbstractHandler<Node> {
         }
     }
 
-    private String getLogDocument() {
+    private String getLogDocument(Node document) {
         StringWriter writer = new StringWriter();
         try {
-            doWrite(writer, this.templateDocument);
+            //doWrite(writer, this.templateDocument);
+            doWrite(writer, document);
         } catch (Exception e) {
             // just log it
             log.error(e.getMessage(), e);
@@ -293,7 +348,12 @@ public class DocumentHandler extends AbstractHandler<Node> {
     }
 
     private Document parseXml() throws IOException {
-        return DOMWrapper.parseXml(getFile(this.xmlTemplateFileName)).getDomObj();
+        File file = new File(this.xmlTemplateFileName);
+        if (!file.exists()) {
+            throw new FileNotFoundException(this.xmlTemplateFileName);
+        }
+
+        return DOMWrapper.parseXml(file).getDomObj();
     }
 
     public void writeDocument(Writer writer) throws Exception {
@@ -323,21 +383,21 @@ public class DocumentHandler extends AbstractHandler<Node> {
         }
     }
 
-    private void doWrite (Writer writer, Document document) throws Exception {
+    private void doWrite (Writer writer, Node node) throws Exception {
         DOMImplementationRegistry registry = DOMImplementationRegistry.newInstance();
         DOMImplementationLS lsImpl = (DOMImplementationLS)registry.getDOMImplementation("LS");
         LSSerializer serializer = lsImpl.createLSSerializer();
         serializer.getDomConfig().setParameter("format-pretty-print", true);
         LSOutput output = lsImpl.createLSOutput();
         output.setCharacterStream(writer);
-        serializer.write(document, output);
+        serializer.write(node, output);
         writer.flush();
         writer.close();
     }
 
     // Clones the Template XML by parsing it and removing the document object (i.e. the 
     // template data). The result is an "empty" document
-    private Document cloneTemplate() throws XPathException, IOException {
+    private Document cloneTemplate() throws XPathException, IOException, TransformException {
         Document clone = parseXml();
         // This is a full clone of the source Document, which has template datat in it. So the next
         // step is to REMOVE any node(s?) defined in our properties as the document node
@@ -349,7 +409,11 @@ public class DocumentHandler extends AbstractHandler<Node> {
         return clone;
     }
 
-    private Document cloneFromDocument(Document document) throws TransformerException, XPathException {
+    /*
+     * Defunct method but has some use to hang around for now. Describes how to clone a Document but has
+     * the limitation of not conveying the original DocType with it.
+     */
+    private Document cloneFromDocument(Document document) throws TransformerException, XPathException, TransformException {
         TransformerFactory tfactory = TransformerFactory.newInstance();
         Transformer tx = tfactory.newTransformer();
         DOMSource src = new DOMSource(document);
@@ -360,25 +424,30 @@ public class DocumentHandler extends AbstractHandler<Node> {
         src = new DOMSource(docType);
         result = new DOMResult();
         tx.transform(src, result);
+        /*
+         * This doesn't work
+         *
         DocumentType cloneDocType = (DocumentType)result.getNode();
         clone.adoptNode(cloneDocType);
+        */
         // This is a full clone of the source Document, which has template datat in it. So the next
         // step is to REMOVE any node(s?) defined in our properties as the document node
         Node docNode = getDocumentNode(clone);
         // This node isn't likely to be the root node. So we need to remove it from its immediate parent
         // Element
         docNode.getParentNode().removeChild(docNode);
-        // We would like to preserve the doctype
         return clone;
     }
 
     /*
      * Returns the Node specified by the documentDirective xpath
      */
-    private Node getDocumentNode(Document fromDocument) throws XPathException {
+    private Node getDocumentNode(Document fromDocument) throws XPathException, TransformException {
         String elementXpath = xpathUtil.getXpathOfElement(this.processor.getDocumentDirective().getPath());
-        // null doc nodes are not allowed. So just let an NPE fly if it happens
-        // (BAD PROGRAMMER!)
+        NodeList nodeList = xpathUtil.findNodes(fromDocument, elementXpath);
+        if (nodeList.getLength() == 0) {
+            throw new TransformException(elementXpath + " not found in document");
+        }
         Node docNode = xpathUtil.findNodes(fromDocument, elementXpath).item(0);
         return docNode;
     }
@@ -387,6 +456,4 @@ public class DocumentHandler extends AbstractHandler<Node> {
     protected void logObject() {
         logDocument(this.templateDocument);
     }
-
-
 }
