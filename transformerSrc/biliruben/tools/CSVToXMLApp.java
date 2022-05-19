@@ -5,6 +5,10 @@ import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.Properties;
+
+import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.PropertyConfigurator;
 
 import com.biliruben.util.GetOpts;
 import com.biliruben.util.OptionLegend;
@@ -20,13 +24,15 @@ public class CSVToXMLApp {
     private static final String OPT_CSV_FILE = "csvFile";
     private static final String OPT_OUT_FILE = "outFile";
     private static final String OPT_XML_FILE = "xmlFile";
+    private static final String LOG4J_PROPERTIES = "log4j.properties";
     private static GetOpts opts;
 
     public static void main(String[] args) throws Exception {
-        
+
+        loadLog4j();
         // parse the ops
         init(args);
-        
+
         String csvFile = opts.getStr(OPT_CSV_FILE);
         String xmlFile = opts.getStr(OPT_XML_FILE);
         // setup the object
@@ -44,6 +50,25 @@ public class CSVToXMLApp {
             writer = new PrintWriter(System.out);
         }
         handler.writeDocument(writer);
+    }
+
+    private static void loadLog4j() {
+
+        File f = new File (LOG4J_PROPERTIES);
+        if (f.exists()) {
+            PropertyConfigurator.configure(LOG4J_PROPERTIES);
+        } else {
+            // Default properties
+            Properties props = new Properties();
+            props.setProperty("log4j.appender.stdout","org.apache.log4j.ConsoleAppender");
+            props.setProperty("log4j.appender.stdout.Target","System.out");
+            props.setProperty("log4j.appender.stdout.layout","org.apache.log4j.PatternLayout");
+            props.setProperty("log4j.appender.stdout.layout.ConversionPattern","%d{ISO8601} %5p %t %c{4}:%L - %m%n");
+            props.setProperty("log4j.rootLogger","debug,stdout");
+
+            PropertyConfigurator.configure(props);
+        }
+        LogFactory.getLog(CSVToXMLApp.class).warn("oh, hai!");
     }
 
     private static void init(String[] args) {

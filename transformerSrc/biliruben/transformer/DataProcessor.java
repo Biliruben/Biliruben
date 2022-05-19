@@ -113,6 +113,7 @@ public class DataProcessor {
                 String currentDocumentValue = documentDirective.deriveValue(data);
                 if (!currentDocumentValue.equals(this.lastDocumentValue)) {
                     this.handler.flushObject();
+                    lastDocumentValue = currentDocumentValue;
                 }
                 // now process the data
                 processData(data);

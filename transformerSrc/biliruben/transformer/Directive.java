@@ -78,8 +78,19 @@ public class Directive {
         }
 
         Map<String, Directive> directives = new HashMap<String, Directive>();
+        Map<String, String> directiveDefaults = new HashMap<String, String>();
+        for (String key : properties.keySet()) {
+            Object value = properties.get(key);
+            if (value instanceof String) {
+                directiveDefaults.put(key, (String)value);
+            }
+        }
         for (String directiveName : directiveNames) {
-            Directive d = new Directive (directiveName, (Map<String, String>)properties.get(directiveName));
+            // bit of a dance. we need the base properties in the map to work as "defaults" while the sub-map
+            // properties work as specific values
+            Map<String, String> directiveProperties = new HashMap<String, String>(directiveDefaults);
+            directiveProperties.putAll((Map<? extends String, ? extends String>) properties.get(directiveName));
+            Directive d = new Directive (directiveName, directiveProperties);
             log.debug("Built:" + d);
             directives.put(directiveName, d);
         }
@@ -109,8 +120,6 @@ public class Directive {
     Directive(String name, Map<String, String> properties) {
         this.processed = false;
         this.path = (String)properties.get(Constants.PROPERTY_XPATH);
-        String defaultSource = (String)properties.get(Constants.PROPERTY_SOURCE);
-        String defaultOperation = (String)properties.get(Constants.PROPERTY_OPERATION);
         
         if (this.path == null) {
             throw new NullPointerException ("Null Path defined for directive " + name);
@@ -126,20 +135,15 @@ public class Directive {
         }
         String source = (String)properties.get(Constants.PROPERTY_SOURCE);
         if (source == null) {
-            source = defaultSource;
-        }
-        if (source == null) {
             throw new NullPointerException ("Null source for directive " + name);
         }
         this.source = Source.valueOf(source);
 
         String opVal = (String)properties.get(Constants.PROPERTY_OPERATION);
         if (opVal == null) {
-            opVal = defaultOperation;
-        }
-        if (opVal == null) {
             throw new NullPointerException ("Null operation for directive " + name);
         }
+
         this.operation = Operation.valueOf(opVal);
         this.value = (String)properties.get(Constants.PROPERTY_VALUE);
         if (this.value == null) {

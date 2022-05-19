@@ -22,6 +22,7 @@ import org.w3c.dom.DocumentType;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.w3c.dom.Text;
 import org.w3c.dom.bootstrap.DOMImplementationRegistry;
 import org.w3c.dom.ls.DOMImplementationLS;
 import org.w3c.dom.ls.LSOutput;
@@ -296,7 +297,30 @@ public class DocumentHandler extends AbstractHandler<Node> {
     }
 
     public void writeDocument(Writer writer) throws Exception {
+        purgeWhitespace(this.workingDocument);
         doWrite (writer, this.workingDocument);
+    }
+
+    /*
+     * Aids in better formatting the Document before serialization. Evaluates all
+     * text() nodes and truncates the value when it is only whitespace
+     */
+    private void purgeWhitespace(Node node) {
+        NodeList children = node.getChildNodes();
+        int length = children.getLength();
+        for (int i = 0; i < length; i++) {
+            Node child = children.item(i);
+            if (child instanceof Text) {
+                Text text = (Text)child;
+                String nodeValue = text.getNodeValue();
+                if (nodeValue != null && "".equals(nodeValue.trim())) {
+                    text.setNodeValue("");
+                }
+            } else {
+                // little recursion never hurt nobody
+                purgeWhitespace(child);
+            }
+        }
     }
 
     private void doWrite (Writer writer, Document document) throws Exception {
