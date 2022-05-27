@@ -1,8 +1,14 @@
-package biliruben.transformer;
+package biliruben.transformer.handler;
 
+import java.io.Writer;
+import java.net.URI;
 import java.util.Map;
 
 import javax.naming.OperationNotSupportedException;
+
+import biliruben.transformer.DataProcessor;
+import biliruben.transformer.Directive;
+import biliruben.transformer.TransformException;
 
 public interface DataHandler {
 
@@ -15,4 +21,8 @@ public interface DataHandler {
     public void setProcessor(DataProcessor processor);
 
     public void preProcess();
+
+    public void setTemplateURI(URI templateUri);
+
+    public void write(Writer writer) throws Exception;
 }

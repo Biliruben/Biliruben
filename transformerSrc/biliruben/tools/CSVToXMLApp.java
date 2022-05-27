@@ -16,7 +16,7 @@ import com.biliruben.util.csv.CSVSource.CSVType;
 import com.biliruben.util.csv.CSVSourceImpl;
 
 import biliruben.transformer.DataProcessor;
-import biliruben.transformer.xml.DocumentHandler;
+import biliruben.transformer.handler.DocumentHandler;
 
 public class CSVToXMLApp {
 
@@ -38,7 +38,8 @@ public class CSVToXMLApp {
         String xmlFile = opts.getStr(OPT_XML_FILE);
         // setup the object
         CSVSource csv = new CSVSourceImpl(new File(csvFile), CSVType.WithHeader);
-        DocumentHandler handler = new DocumentHandler(xmlFile);
+        DocumentHandler handler = new DocumentHandler();
+        handler.setTemplateURI(new File(xmlFile).toURI());
         DataProcessor proc = new DataProcessor(opts.getProperties(), csv, handler);
 
         // process
@@ -50,11 +51,10 @@ public class CSVToXMLApp {
         } else {
             writer = new PrintWriter(System.out);
         }
-        handler.writeDocument(writer);
+        handler.write(writer);
     }
 
     private static void loadLog4j() {
-
         File f = new File (LOG4J_PROPERTIES);
         if (f.exists()) {
             PropertyConfigurator.configure(LOG4J_PROPERTIES);

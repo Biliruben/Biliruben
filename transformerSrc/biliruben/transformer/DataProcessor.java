@@ -12,6 +12,8 @@ import javax.naming.OperationNotSupportedException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import biliruben.transformer.handler.DataHandler;
+
 /**
  * Processes a data source, normalized as a Iterable of Map<String, String>. Each Map<String, String> is processed
  * against a collection of Directives which describe how to apply that data to a target document. A DataHandler

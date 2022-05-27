@@ -1,4 +1,4 @@
-package biliruben.transformer.xml;
+package biliruben.transformer.handler;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -7,6 +7,8 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Map;
 
+import javax.activation.MimeType;
+import javax.activation.MimeTypeParseException;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
@@ -30,9 +32,9 @@ import org.w3c.dom.ls.LSSerializer;
 
 import com.biliruben.tools.xml.DOMWrapper;
 
-import biliruben.transformer.AbstractHandler;
 import biliruben.transformer.Directive;
 import biliruben.transformer.TransformException;
+import biliruben.transformer.xml.XPathUtil;
 
 /**
  * XML object handler. Uses a template XML to layout the overall structure of the target object(s)
@@ -59,24 +61,27 @@ public class DocumentHandler extends AbstractHandler<Node> {
     private Document templateDocument;
     
     /*
-     * The template Document filename. We hang on to this since resetting the template
-     * document requires us to re-parse the source file.
-     */
-    private String xmlTemplateFileName;
-    
-    /*
      * It's better than bad, it's good!
      */
     private static Log log = LogFactory.getLog(DocumentHandler.class);
     
 
-    public DocumentHandler(String xmlTemplate) throws Exception {
+    public static String MIME_TYPE = "text/xml";
+
+    public DocumentHandler() {
         // build templateDocument
-        this.xmlTemplateFileName = xmlTemplate;
         this.xpathUtil = new XPathUtil();
-        this.templateDocument = parseXml();
     }
 
+    @Override
+    protected void setTemplateURIInner() {
+        try {
+            this.templateDocument = parseXml();
+        } catch (IOException e) {
+            // an IOException should just blow it up
+            throw new RuntimeException(e);
+        }
+    }
     /**
      * Callback from the Processor. Allows us to do any setup work that we couldn't handle in the constructor
      */
@@ -348,15 +353,16 @@ public class DocumentHandler extends AbstractHandler<Node> {
     }
 
     private Document parseXml() throws IOException {
-        File file = new File(this.xmlTemplateFileName);
+        // We don't have a file name, we have a URI
+        File file = new File(this.templateUri);
         if (!file.exists()) {
-            throw new FileNotFoundException(this.xmlTemplateFileName);
+            throw new FileNotFoundException(this.templateUri.getPath());
         }
 
         return DOMWrapper.parseXml(file).getDomObj();
     }
 
-    public void writeDocument(Writer writer) throws Exception {
+    public void write(Writer writer) throws Exception {
         purgeWhitespace(this.workingDocument);
         doWrite (writer, this.workingDocument);
     }
@@ -455,5 +461,15 @@ public class DocumentHandler extends AbstractHandler<Node> {
     @Override
     protected void logObject() {
         logDocument(this.templateDocument);
+    }
+
+    @Override
+    public MimeType getMimeType() {
+        try {
+            return new MimeType(MIME_TYPE);
+        } catch (MimeTypeParseException e) {
+            // This is a programming error; RTE it
+            throw new RuntimeException(e);
+        }
     }
 }

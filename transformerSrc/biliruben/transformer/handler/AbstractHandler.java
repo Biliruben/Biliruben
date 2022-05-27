@@ -1,11 +1,21 @@
-package biliruben.transformer;
+package biliruben.transformer.handler;
 
+import java.net.URI;
 import java.util.Map;
+import java.util.Properties;
 
 import javax.naming.OperationNotSupportedException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.PropertyConfigurator;
+
+import biliruben.transformer.DataProcessor;
+import biliruben.transformer.Directive;
+import biliruben.transformer.MappedMimeType;
+import biliruben.transformer.TransformException;
+import biliruben.transformer.Util;
+import biliruben.transformer.adapter.AbstractTransformerSourceAdapter;
 
 /**
  * Parent class for DataHandler implementation. Ensures Directives are handled such that parent Directives are handled before
@@ -14,10 +24,11 @@ import org.apache.commons.logging.LogFactory;
  *
  * @param <N> The node type each Directive path is indicating
  */
-public abstract class AbstractHandler<N> implements DataHandler {
+public abstract class AbstractHandler<N> implements DataHandler, MappedMimeType {
 
     private static Log log = LogFactory.getLog(AbstractHandler.class);
     protected DataProcessor processor;
+    protected URI templateUri;
 
     @Override
     public void handleOperation(Map<String, String> data, Directive directive) throws OperationNotSupportedException, TransformException {
@@ -157,5 +168,37 @@ public abstract class AbstractHandler<N> implements DataHandler {
     @Override
     public void preProcess() {
         // Successors aren't required to implement this method; Make this a no-op
+    }
+
+    @Override
+    public void setTemplateURI(URI templateUri) {
+        this.templateUri = templateUri;
+        setTemplateURIInner();
+    }
+
+    protected abstract void setTemplateURIInner();
+
+    public static Class<? extends AbstractHandler> getHandler(String forMimeType) {
+        log.trace("getTransformer: forMimeType = " + forMimeType);
+        Class<? extends MappedMimeType> foundClass = Util.getClassForMimeType(forMimeType, AbstractHandler.class);
+        Class<? extends AbstractHandler> foundAdapterClass = null;
+        if (foundClass != null && AbstractHandler.class.isAssignableFrom(foundClass)) {
+            foundAdapterClass = (Class<? extends AbstractHandler>) foundClass;
+        }
+        log.trace("Returning: " + foundClass);
+        return foundAdapterClass;
+    }
+
+    public static void main(String[] args) {
+        // Default properties
+        Properties props = new Properties();
+        props.setProperty("log4j.appender.stdout","org.apache.log4j.ConsoleAppender");
+        props.setProperty("log4j.appender.stdout.Target","System.out");
+        props.setProperty("log4j.appender.stdout.layout","org.apache.log4j.PatternLayout");
+        props.setProperty("log4j.appender.stdout.layout.ConversionPattern","%d{ISO8601} %5p %t %c{4}:%L - %m%n");
+        props.setProperty("log4j.rootLogger", "debug" + ",stdout");
+
+        PropertyConfigurator.configure(props);
+        System.out.println(getHandler("xml"));
     }
 }

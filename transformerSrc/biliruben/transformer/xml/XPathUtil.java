@@ -25,7 +25,7 @@ import org.xml.sax.SAXException;
 import biliruben.transformer.Directive;
 
 /**
- * Utility to handle enough XPath operations in order to make {@link biliruben.transformer.xml.DocumentHandler} work
+ * Utility to handle enough XPath operations in order to make {@link biliruben.transformer.handler.DocumentHandler} work
  * @author trey.kirk
  *
  */
