@@ -1,6 +1,7 @@
 package biliruben.transformer.adapter;
 
 import java.io.Reader;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.logging.Log;
@@ -20,6 +21,12 @@ public abstract class AbstractTransformerSourceAdapter implements TransformerSou
     public void setReader(Reader source) {
         log.trace("setReader: source = " + source);
         this.sourceReader = source;
+    }
+
+    @Override
+    public void configure(Map<String, Object> properties) {
+        // No-op
+        log.info("configure: no configuration operation defined for " + this);
     }
 
     public Reader getReader() {

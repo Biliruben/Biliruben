@@ -104,6 +104,7 @@ public class TransformApp {
             writer = new OutputStreamWriter(System.out);
         }
 
+        // setup the processor and do the deed
         DataProcessor processor = new DataProcessor(opts.getProperties(), adapter, handler);
         processor.process();
         handler.write(writer);

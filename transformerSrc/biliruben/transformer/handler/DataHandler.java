@@ -6,11 +6,12 @@ import java.util.Map;
 
 import javax.naming.OperationNotSupportedException;
 
+import biliruben.transformer.Configurable;
 import biliruben.transformer.DataProcessor;
 import biliruben.transformer.Directive;
 import biliruben.transformer.TransformException;
 
-public interface DataHandler {
+public interface DataHandler extends Configurable {
 
     public void flushObject() throws TransformException;
 

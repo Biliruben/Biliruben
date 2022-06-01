@@ -47,8 +47,14 @@ public class Util {
                 Method m = clazz.getMethod("getMimeType", (Class[])null);
                 Object ret = m.invoke(instance);
                 if (log.isDebugEnabled()) log.debug("ret = " + ret);
-                if (ret instanceof MimeType) {
-                    MimeType theirMimeType = (MimeType)ret;
+                if (ret instanceof String) {
+                    MimeType theirMimeType = null;
+                    try {
+                        theirMimeType = new MimeType((String)ret);
+                    } catch (MimeTypeParseException e) {
+                        log.error(e.getMessage(), e);
+                        // leave theirMimeType as null
+                    }
                     // if it's an exact match, we done
                     if (mimeType != null && theirMimeType.match(mimeType)) {
                         // winner!

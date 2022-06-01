@@ -74,6 +74,12 @@ public class DocumentHandler extends AbstractHandler<Node> {
     }
 
     @Override
+    public void configure(Map<String, Object> properties) {
+        // No-op
+        log.info("configure: no configuration operation defined for " + this);
+    }
+
+    @Override
     protected void setTemplateURIInner() {
         try {
             this.templateDocument = parseXml();
@@ -464,12 +470,7 @@ public class DocumentHandler extends AbstractHandler<Node> {
     }
 
     @Override
-    public MimeType getMimeType() {
-        try {
-            return new MimeType(MIME_TYPE);
-        } catch (MimeTypeParseException e) {
-            // This is a programming error; RTE it
-            throw new RuntimeException(e);
-        }
+    public String getMimeType() {
+        return MIME_TYPE;
     }
 }

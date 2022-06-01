@@ -31,7 +31,7 @@ public class CSVToXMLApp {
     public static void main(String[] args) throws Exception {
 
         loadLog4j();
-        // parse the ops
+        // parse the opts
         init(args);
 
         String csvFile = opts.getStr(OPT_CSV_FILE);

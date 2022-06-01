@@ -25,15 +25,28 @@ import biliruben.transformer.handler.DataHandler;
  */
 public class DataProcessor {
 
+    // mapping of directive to directive names
     private Map<String, Directive> directives;
+    // configuration properties. All processor directives are at the base group (not prepended)
     private Map properties;
+    // directive that indicates what a "document" is. When the corresponding value for this directive
+    // changes, the processor will be flushed
     private String documentDirectiveName;
+    // How we keep up with the "document"
     private String lastDocumentValue;
+    // the data source we'll be iterating over, provided by the sourceAdapter
     private Iterable<Map<String, String>> dataSource;
+    // the DataHandler converting the source to the target document
     private DataHandler handler;
 
     private static Log log = LogFactory.getLog(DataProcessor.class);
 
+    /**
+     * Constructor
+     * @param properties Map of properties to configure the DataProcessor
+     * @param dataSource Iterable of data to convert
+     * @param handler Handler that interprets the incoming data and applies Directives
+     */
     public DataProcessor (Map properties, Iterable<Map<String, String>> dataSource, DataHandler handler) {
         handler.setProcessor(this);
         this.dataSource = dataSource;
@@ -47,10 +60,18 @@ public class DataProcessor {
         }
     }
 
+    /**
+     * Returns the map of Directives
+     * @return
+     */
     public Map<String, Directive> getDirectives() {
         return new HashMap<String, Directive>(this.directives);
     }
 
+    /**
+     * Returns the Directive that describes how to handle the document value
+     * @return
+     */
     public Directive getDocumentDirective() {
         return this.directives.get(this.documentDirectiveName);
     }
@@ -88,6 +109,9 @@ public class DataProcessor {
         }
     }
 
+    /*
+     * Extracts the directive map from the provided properties. The directive properties should be grouped under the 'directive' key
+     */
     private void buildDirectives() throws FileNotFoundException, IOException {
         log.debug("Building directives from: " + this.properties);
         List<Directive> directiveList = Directive.extractDirectives(this.properties);
@@ -99,6 +123,10 @@ public class DataProcessor {
         log.debug("Directives: " + this.directives);
     }
 
+    /**
+     * Processes the data source
+     * @throws TransformException
+     */
     public void process() throws TransformException {
         try {
             if (this.directives == null) {
@@ -133,12 +161,19 @@ public class DataProcessor {
         }
     }
 
+    /*
+     * Resets the Directives to mark them as not having been processed. This needs to happen whenever
+     * we detect that we're building the next document
+     */
     private void resetDirectives() {
         for (Directive d : this.directives.values()) {
             d.setProcessed(false);
         }
     }
 
+    /*
+     * Processes a single line of data
+     */
     private void processData (Map<String, String> data) throws TransformException {
         for (Directive directive : this.directives.values()) {
             try {

@@ -55,24 +55,19 @@ public class Directive {
      * @return
      */
     public static List<Directive> extractDirectives(Map<String, Object> properties) {
+        // if there is a 'directive' key, replace properties with that value. Otherwise, read
+        // properties 'as-is'
+        if (properties.containsKey(Constants.DIRECTIVE) && properties.get(Constants.DIRECTIVE) instanceof Map) {
+            properties = (Map<String, Object>) properties.get(Constants.DIRECTIVE);
+        }
         Set<String> directiveNames = new HashSet<String>();
-        String directiveProperty = (String)properties.get(Constants.PROPERTY_DIRECTIVES);
-        log.debug("directiveProperty: " + directiveProperty);
-        if (directiveProperty != null) {
-            log.debug("Building user specified");
-            for (String directiveName : directiveProperty.split(",")) {
-                directiveNames.add(directiveName);
-            }
-        } else {
-            log.debug("Discovering");
-            for (Object propertyNameObj : properties.keySet()) {
-                Object directivePropertiesObj = properties.get(propertyNameObj);
-                if (directivePropertiesObj != null && directivePropertiesObj instanceof Map) {
-                    // every directive must have a path defined, so that's our key
-                    String path = (String) ((Map)directivePropertiesObj).get(Constants.PROPERTY_XPATH);
-                    if (path != null) {
-                        directiveNames.add((String) propertyNameObj);
-                    }
+        for (Object propertyNameObj : properties.keySet()) {
+            Object directivePropertiesObj = properties.get(propertyNameObj);
+            if (directivePropertiesObj != null && directivePropertiesObj instanceof Map) {
+                // every directive must have a path defined, so that's our key
+                String path = (String) ((Map)directivePropertiesObj).get(Constants.PROPERTY_PATH);
+                if (path != null) {
+                    directiveNames.add((String) propertyNameObj);
                 }
             }
         }
@@ -119,7 +114,7 @@ public class Directive {
      */
     Directive(String name, Map<String, String> properties) {
         this.processed = false;
-        this.path = (String)properties.get(Constants.PROPERTY_XPATH);
+        this.path = (String)properties.get(Constants.PROPERTY_PATH);
         
         if (this.path == null) {
             throw new NullPointerException ("Null Path defined for directive " + name);
