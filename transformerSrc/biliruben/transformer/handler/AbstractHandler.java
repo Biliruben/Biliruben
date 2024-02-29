@@ -62,6 +62,9 @@ public abstract class AbstractHandler<N> implements DataHandler, MappedMimeType 
                     handleOperation(data, parentDirective);
                 }
             }
+            if (log.isDebugEnabled()) {
+                log.debug("Continuing directive: " + directive);
+            }
             N node = findTargetNode(data, directive);
             // if 'node' is null, then the handler does not have a place for this
             // directive; Skip it
@@ -86,12 +89,12 @@ public abstract class AbstractHandler<N> implements DataHandler, MappedMimeType 
                 break;
             default: throw new IllegalStateException(directive.getOperation() + " is not supported");
             }
-
             if (log.isDebugEnabled()) {
                 log.debug("After directive: " + directive);
                 logObject();
             }
             directive.setProcessed(true);
+            
         } catch (Exception e) {
             throw new TransformException(e);
         }

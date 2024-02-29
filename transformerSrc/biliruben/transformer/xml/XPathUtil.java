@@ -165,6 +165,7 @@ public class XPathUtil {
      * @return
      */
     public String diffXpath (String xpath, String parentPath) {
+        log.debug("diffXpath: xpath = " + xpath + " parentPath = " + parentPath);
         if (xpath == null) throw new NullPointerException ("xpath cannot be null");
         if (parentPath == null) throw new NullPointerException ("parentPath cannot be null");
         // If either path ends with a /, just strip it off; it makes things less complicated
@@ -183,6 +184,7 @@ public class XPathUtil {
         if (!xpath.equals(parentPath)) {
             diffXpath = xpath.substring(parentPath.length() + 1);
         }
+        log.debug("Returning diffXpath = " + diffXpath);
         return diffXpath;
     }
 
@@ -236,7 +238,7 @@ public class XPathUtil {
         } else if (last.endsWith("()")) {
             // text
             xpath = elementPath;
-            xpath = xpath + "[" + last + " = '"  + forDirective.deriveValue(data) + "'";
+            xpath = xpath + "[" + last + " = '" + forDirective.deriveValue(data) + "']";
         }
         log.debug("xpath: " + xpath);
         return xpath;
@@ -253,11 +255,19 @@ public class XPathUtil {
     public Node createNodeHierarchy (String xpath, Document document, Node parentNode) {
         // break up the xpath into tokens, create an element for each token and attach
         // that element to the parentNode. Loop with the new node now being the parent
+        if (log.isDebugEnabled()) {
+            log.debug("createNodeHierarchy: xpath = " + xpath + "; document = " + document + "; parentNode = " + getXpath(parentNode));
+        }
         String[] tokens = xpath.split("/");
         for (String token : tokens) {
+            log.debug("Creating node for token = " + token);
             Node node = null;
             if (token.equals("text()"))  {
                 node = document.createTextNode(null);
+                Element parentElement = (Element)parentNode;
+                parentElement.appendChild(node);
+            } else if (token.startsWith("comment()")) {
+                node = document.createComment(null);
                 Element parentElement = (Element)parentNode;
                 parentElement.appendChild(node);
             } else if (token.startsWith("@")) {

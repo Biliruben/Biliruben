@@ -32,6 +32,7 @@ import org.w3c.dom.ls.LSSerializer;
 
 import com.biliruben.tools.xml.DOMWrapper;
 
+import biliruben.transformer.Constants;
 import biliruben.transformer.Directive;
 import biliruben.transformer.TransformException;
 import biliruben.transformer.xml.XPathUtil;
@@ -59,6 +60,8 @@ public class DocumentHandler extends AbstractHandler<Node> {
      * The template Document we'll build our resulting objects from
      */
     private Document templateDocument;
+
+    private Node newParentNode;
     
     /*
      * It's better than bad, it's good!
@@ -114,11 +117,16 @@ public class DocumentHandler extends AbstractHandler<Node> {
             // this node needs to be migrated from the template document to the output document
             // Get the parent node of document Node's parent element.
             Node parentNode = processedNode.getParentNode();
-            String parentPath = xpathUtil.getXpath(parentNode);
-            Node newParentNode = xpathUtil.findExistingParentNode(this.workingDocument, parentPath);
-            if (newParentNode == null) {
-                // the parent node will be the document
-                newParentNode = this.workingDocument;
+            if (this.newParentNode == null) {
+                String parentPath = xpathUtil.getXpath(parentNode);
+                this.newParentNode = xpathUtil.findExistingParentNode(this.workingDocument, parentPath);
+                if (log.isDebugEnabled()) {
+                    log.debug("newParentNode = " + newParentNode != null ? xpathUtil.getXpath(newParentNode) : null);
+                }
+                if (this.newParentNode == null) {
+                    // the parent node will be the document
+                    this.newParentNode = this.workingDocument;
+                }
             }
             /*
              * Imma leave this bullshit here so I remember the pain. Why not 
@@ -270,6 +278,9 @@ public class DocumentHandler extends AbstractHandler<Node> {
     }
 
     private NodeList findNodes (Node fromNode, String xpath, String property, String value) throws XPathException {
+        if (log.isDebugEnabled()) {
+            log.debug("findNodes: fromNode = " + xpathUtil.getXpath(fromNode) + "\n\txpath = " + xpath + "\n\tproperty = " + property + "\n\tvalue = " + value);
+        }
         NodeList foundNodes = null;
         if (property != null) {
             xpath = this.xpathUtil.getXpathOfElement(xpath);
@@ -278,6 +289,14 @@ public class DocumentHandler extends AbstractHandler<Node> {
             //xpath = xpath + "[@" + property + "='" + value + "']";
         }
         foundNodes = xpathUtil.findNodes(fromNode, xpath);
+        if (log.isDebugEnabled()) {
+            StringBuffer buff = new StringBuffer();
+            for (int i = 0; i < foundNodes.getLength(); i++) {
+                Node n = foundNodes.item(i);
+                buff.append(xpathUtil.getXpath(n)).append("; ");
+            }
+            log.debug("Returning (" + foundNodes.getLength() + " nodes): " + buff.toString());
+        }
         return foundNodes;
     }
 
@@ -326,8 +345,11 @@ public class DocumentHandler extends AbstractHandler<Node> {
                 String relativePath = xpathUtil.diffXpath(directive.getParentElement(), nodeXpath);
                 NodeList nodes = xpathUtil.findNodes(node, relativePath);
                 if (nodes.getLength() > 0) {
-                    log.debug("Using parent specified by parentElement");
+                    log.debug("Using parent specified by " + Constants.PROPERTY_PARENT_PATH);
                     node = nodes.item(0);
+                } else {
+                    log.debug("No nodes found with " + Constants.PROPERTY_PARENT_PATH);
+                    log.debug("\n\tnodeXpath = " + nodeXpath + "\n\trelativePath = " + relativePath);
                 }
             }
         } catch (Exception e) {
