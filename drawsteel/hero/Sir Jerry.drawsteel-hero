@@ -1,5 +1,5 @@
 {
-	"id": "WfqBAd5HJpPg7jyh",
+	"id": "HXl4xhdO6Q2ypI52",
 	"name": "Sir Jerry",
 	"settingIDs": [
 		"",
@@ -679,7 +679,16 @@
 								"Intrigue"
 							],
 							"count": 1,
-							"selected": []
+							"selected": [
+								{
+									"id": "perk-danger-sense",
+									"name": "Danger Sense",
+									"description": "When in a natural environment that isn’t in a settlement, you have an edge on all tests made with the Alertness skill, and you cannot be surprised. Additionally, you’re attuned to the instincts of wildlife and know if a natural disaster is imminent within the next 72 hours. You don’t know exactly what it will entail.",
+									"type": "Text",
+									"data": null,
+									"list": "Exploration"
+								}
+							]
 						}
 					}
 				]
@@ -1933,7 +1942,52 @@
 										}
 									],
 									"count": 1,
-									"selected": []
+									"selected": [
+										{
+											"id": "tactician-sub-3-2-2b",
+											"name": "Squad! On Me!",
+											"description": "Together we are invincible!",
+											"type": "Ability",
+											"data": {
+												"ability": {
+													"id": "tactician-sub-3-2-2b",
+													"name": "Squad! On Me!",
+													"description": "Together we are invincible!",
+													"type": {
+														"usage": "Maneuver",
+														"free": false,
+														"trigger": "",
+														"time": "",
+														"qualifiers": []
+													},
+													"keywords": [
+														"Area"
+													],
+													"distance": [
+														{
+															"type": "Burst",
+															"value": 1,
+															"value2": 0,
+															"within": 0,
+															"special": "",
+															"qualifier": ""
+														}
+													],
+													"target": "Self and each ally in the area",
+													"cost": 5,
+													"minLevel": 1,
+													"preEffect": "",
+													"powerRoll": null,
+													"test": null,
+													"effect": "Until the start of your next turn, each target gains a bonus to their Stability equal to your Might score. Additionally, each target gains two surges.",
+													"strained": "",
+													"alternateEffects": [],
+													"spend": [],
+													"persistence": []
+												}
+											}
+										}
+									]
 								}
 							}
 						]
@@ -1946,7 +2000,7 @@
 				"selected": true
 			}
 		],
-		"level": 1,
+		"level": 2,
 		"characteristics": [
 			{
 				"characteristic": "Might",
@@ -2196,7 +2250,7 @@
 		"recoveriesUsed": 8,
 		"surges": 0,
 		"victories": 6,
-		"xp": 0,
+		"xp": 16,
 		"heroicResource": 0,
 		"heroTokens": 0,
 		"renown": 1,
