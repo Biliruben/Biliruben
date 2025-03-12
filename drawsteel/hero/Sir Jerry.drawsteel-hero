@@ -1,5 +1,5 @@
 {
-	"id": "HXl4xhdO6Q2ypI52",
+	"id": "goDDhfxMEQoYU10s",
 	"name": "Sir Jerry",
 	"settingIDs": [
 		"",
@@ -2246,11 +2246,11 @@
 		}
 	],
 	"state": {
-		"staminaDamage": 15,
-		"recoveriesUsed": 8,
+		"staminaDamage": 0,
+		"recoveriesUsed": 0,
 		"surges": 0,
-		"victories": 6,
-		"xp": 16,
+		"victories": 0,
+		"xp": 0,
 		"heroicResource": 0,
 		"heroTokens": 0,
 		"renown": 1,
@@ -2262,5 +2262,6 @@
 		"staminaTemp": 0,
 		"notes": ""
 	},
-	"abilityCustomizations": []
+	"abilityCustomizations": [],
+	"folder": ""
 }
