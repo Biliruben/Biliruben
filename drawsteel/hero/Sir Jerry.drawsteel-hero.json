@@ -2260,17 +2260,30 @@
 		}
 	],
 	"state": {
-		"staminaDamage": 7,
-		"recoveriesUsed": 2,
+		"staminaDamage": 0,
+		"recoveriesUsed": 7,
 		"surges": 0,
-		"victories": 1,
+		"victories": 3,
 		"xp": 8,
 		"heroicResource": 0,
 		"heroTokens": 0,
 		"renown": 1,
 		"wealth": 1,
 		"projectPoints": 0,
-		"conditions": [],
+		"conditions": [
+			{
+				"id": "iEurCDySQnz2FTW9",
+				"type": "Bleeding",
+				"text": "",
+				"ends": "End of turn"
+			},
+			{
+				"id": "uymt6kYFcwCWWeNx",
+				"type": "Restrained",
+				"text": "",
+				"ends": "End of turn"
+			}
+		],
 		"inventory": [
 			{
 				"id": "cb44Itir2KEUe4EY",
@@ -2378,8 +2391,26 @@
 				"count": 1
 			}
 		],
-		"projects": [],
-		"staminaTemp": 10,
+		"projects": [
+			{
+				"id": "C7KyVhuKD3a2n23z",
+				"name": "Spend Time With Loved Ones",
+				"description": "",
+				"itemPrerequisites": "",
+				"source": "",
+				"characteristic": [
+					"Presence"
+				],
+				"goal": 60,
+				"effect": "You revitalize your spirit by spending time with people you love who you haven’t seen in a long while. You must be able to communicate with them in order to undertake this project and make project rolls for it. When you complete this project, your Stamina maximum increases by 12 + your level until the end of your next respite. You can’t start another Spend Time with Loved Ones project for 1 month.",
+				"progress": {
+					"prerequisites": false,
+					"source": false,
+					"points": 7
+				}
+			}
+		],
+		"staminaTemp": 0,
 		"notes": ""
 	},
 	"abilityCustomizations": [],
