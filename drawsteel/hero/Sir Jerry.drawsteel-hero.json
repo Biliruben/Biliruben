@@ -1,5 +1,5 @@
 {
-	"id": "VTyzjI0lu5YDJlxA",
+	"id": "mX34gLU2d0HSPBbM",
 	"name": "Sir Jerry",
 	"settingIDs": [
 		"",
@@ -2267,8 +2267,8 @@
 		"xp": 8,
 		"heroicResource": 0,
 		"heroTokens": 0,
-		"renown": 1,
-		"wealth": 1,
+		"renown": 2,
+		"wealth": 2,
 		"projectPoints": 0,
 		"conditions": [
 			{
@@ -2323,7 +2323,21 @@
 						"features": []
 					}
 				],
-				"count": 1
+				"count": 1,
+				"customizationsByLevel": [
+					{
+						"level": 1,
+						"features": []
+					},
+					{
+						"level": 5,
+						"features": []
+					},
+					{
+						"level": 9,
+						"features": []
+					}
+				]
 			},
 			{
 				"id": "FgwTGIyDOf2gPDmg",
@@ -2388,7 +2402,21 @@
 						]
 					}
 				],
-				"count": 1
+				"count": 1,
+				"customizationsByLevel": [
+					{
+						"level": 1,
+						"features": []
+					},
+					{
+						"level": 5,
+						"features": []
+					},
+					{
+						"level": 9,
+						"features": []
+					}
+				]
 			}
 		],
 		"projects": [
@@ -2411,8 +2439,10 @@
 			}
 		],
 		"staminaTemp": 0,
-		"notes": ""
+		"notes": "",
+		"acted": false,
+		"defeated": false
 	},
 	"abilityCustomizations": [],
-	"folder": ""
+	"folder": "Jerry"
 }
