@@ -1,5 +1,5 @@
 {
-	"id": "mX34gLU2d0HSPBbM",
+	"id": "J4xMSMe7EWeWMvEh",
 	"name": "Sir Jerry",
 	"settingIDs": [
 		"",
@@ -379,7 +379,7 @@
 									"id": "kit-shining-armor",
 									"name": "Shining Armor",
 									"description": "The Shining Armor kit provides the most protection a kit can afford, providing you with the sword, shield, and armor necessary to play the prototypical knight.",
-									"type": "Standard",
+									"type": "",
 									"armor": [
 										"Heavy Armor",
 										"Shield"
@@ -434,6 +434,7 @@
 													],
 													"target": "1 creature",
 													"cost": "signature",
+													"repeatable": false,
 													"minLevel": 1,
 													"preEffect": "",
 													"powerRoll": {
@@ -458,37 +459,40 @@
 									]
 								},
 								{
-									"id": "kit-whirlwind",
-									"name": "Whirlwind",
-									"description": "The Whirlwind kit makes effective use of whips, granting you mobility, damage, and reach. If you want to be a mobile warrior who uses a chain or whip, then this is the kit for you.",
-									"type": "Standard",
-									"armor": [],
-									"weapon": [
-										"Whip"
+									"id": "kit-sword-and-board",
+									"name": "Sword and Board",
+									"description": "The Sword and Board kit doesn't just give you a shield - it makes the shield part of your offensive arsenal. With a medium weapon in one hand and a block of steel or solid oak in the other, you can protect yourself and control the battlefield.",
+									"type": "",
+									"armor": [
+										"Medium Armor",
+										"Shield"
 									],
-									"stamina": 0,
-									"speed": 3,
-									"stability": 0,
+									"weapon": [
+										"Medium Weapon"
+									],
+									"stamina": 9,
+									"speed": 0,
+									"stability": 1,
 									"meleeDamage": {
-										"tier1": 1,
-										"tier2": 1,
-										"tier3": 1
+										"tier1": 2,
+										"tier2": 2,
+										"tier3": 2
 									},
 									"rangedDamage": null,
-									"meleeDistance": 1,
+									"meleeDistance": 0,
 									"rangedDistance": 0,
 									"disengage": 1,
 									"features": [
 										{
-											"id": "kit-whirlwind-signature",
-											"name": "Extension Of My Arm",
-											"description": "When you draw your whip back after an attack, your enemy comes ever closer.",
+											"id": "kit-sword-and-board-signature",
+											"name": "Shield Bash",
+											"description": "In your hands, a shield isn’t just for protection.",
 											"type": "Ability",
 											"data": {
 												"ability": {
-													"id": "kit-whirlwind-signature",
-													"name": "Extension Of My Arm",
-													"description": "When you draw your whip back after an attack, your enemy comes ever closer.",
+													"id": "kit-sword-and-board-signature",
+													"name": "Shield Bash",
+													"description": "In your hands, a shield isn’t just for protection.",
 													"type": {
 														"usage": "Action",
 														"free": false,
@@ -504,7 +508,7 @@
 													"distance": [
 														{
 															"type": "Melee",
-															"value": 2,
+															"value": 1,
 															"value2": 0,
 															"within": 0,
 															"special": "",
@@ -513,6 +517,7 @@
 													],
 													"target": "1 creature",
 													"cost": "signature",
+													"repeatable": false,
 													"minLevel": 1,
 													"preEffect": "",
 													"powerRoll": {
@@ -521,9 +526,9 @@
 															"Agility"
 														],
 														"bonus": 0,
-														"tier1": "3 + M or A damage; vertical pull 1",
-														"tier2": "6 + M or A damage; vertical pull 2",
-														"tier3": "9 + M or A damage; vertical pull 3"
+														"tier1": "2 + M or A damage; push 1",
+														"tier2": "5 + M or A damage; push 2",
+														"tier3": "7 + M or A damage; push 3; M < [strong] prone"
 													},
 													"test": null,
 													"effect": "",
@@ -2022,7 +2027,8 @@
 				"characteristic": "Presence",
 				"value": 1
 			}
-		]
+		],
+		"primaryCharacteristicsOptions": []
 	},
 	"career": {
 		"id": "career-soldier",
@@ -2257,33 +2263,34 @@
 				"valuePerLevel": 0,
 				"valuePerEchelon": 0
 			}
+		},
+		{
+			"id": "N6rOoptmYwnIf2ul",
+			"name": "Stamina + 14",
+			"description": "",
+			"type": "Bonus",
+			"data": {
+				"field": "Stamina",
+				"value": 14,
+				"valueCharacteristics": [],
+				"valueCharacteristicMultiplier": 1,
+				"valuePerLevel": 0,
+				"valuePerEchelon": 0
+			}
 		}
 	],
 	"state": {
-		"staminaDamage": 0,
-		"recoveriesUsed": 7,
+		"staminaDamage": 20,
+		"recoveriesUsed": 4,
 		"surges": 0,
-		"victories": 3,
-		"xp": 8,
+		"victories": 2,
+		"xp": 11,
 		"heroicResource": 0,
 		"heroTokens": 0,
 		"renown": 2,
 		"wealth": 2,
 		"projectPoints": 0,
-		"conditions": [
-			{
-				"id": "iEurCDySQnz2FTW9",
-				"type": "Bleeding",
-				"text": "",
-				"ends": "End of turn"
-			},
-			{
-				"id": "uymt6kYFcwCWWeNx",
-				"type": "Restrained",
-				"text": "",
-				"ends": "End of turn"
-			}
-		],
+		"conditions": [],
 		"inventory": [
 			{
 				"id": "cb44Itir2KEUe4EY",
@@ -2417,6 +2424,60 @@
 						"features": []
 					}
 				]
+			},
+			{
+				"id": "9YAywnUk4kBsCk2k",
+				"name": "Gecko Gloves",
+				"description": "These scaled gloves have palms and fingers covered in nearinvisible sticky hairs.",
+				"type": "Trinket",
+				"keywords": [
+					"Hands",
+					"Magic"
+				],
+				"crafting": {
+					"id": "item-gecko-gloves-crafting",
+					"name": "Craft Gecko Gloves",
+					"description": "Craft a Gecko Gloves",
+					"itemPrerequisites": "Ten gecko tails",
+					"source": "Texts or lore in Caelian",
+					"characteristic": [
+						"Reason",
+						"Intuition"
+					],
+					"goal": 100,
+					"effect": "",
+					"progress": null
+				},
+				"effect": "While you wear these gloves, your grip is all but impossible to break. You can't be disarmed, you can't lose your grip while climbing, and creatures grabbed by you take a bane on the test for the Escape Grab maneuver.",
+				"featuresByLevel": [
+					{
+						"level": 1,
+						"features": []
+					},
+					{
+						"level": 5,
+						"features": []
+					},
+					{
+						"level": 9,
+						"features": []
+					}
+				],
+				"count": 1,
+				"customizationsByLevel": [
+					{
+						"level": 1,
+						"features": []
+					},
+					{
+						"level": 5,
+						"features": []
+					},
+					{
+						"level": 9,
+						"features": []
+					}
+				]
 			}
 		],
 		"projects": [
@@ -2434,7 +2495,47 @@
 				"progress": {
 					"prerequisites": false,
 					"source": false,
-					"points": 7
+					"points": 60
+				}
+			},
+			{
+				"id": "rU3hmOHojO9pPE76",
+				"name": "Fishing",
+				"description": "",
+				"itemPrerequisites": "",
+				"source": "",
+				"characteristic": [
+					"Agility",
+					"Reason",
+					"Presence"
+				],
+				"goal": 0,
+				"effect": "\nYou’ve gone fishing, provided you are near a body of water. The project roll for this project has the following changes:\n\n* The points you roll represent the length of the fish (or fish-like creature) you catch.\n* During each respite when you undertake this activity, you continue making project rolls until you get an 11 or lower (fish got away, earning you no points) or a breakthrough.\n* A breakthrough results in rolling on the fishing events table instead of additional points or another project roll.\n\nWhen you finish rolling, you can spend the points you earned on a reward from the Tackle table. Any points you don’t spend during this respite activity are lost.\n\n| Reward                  | Cost | Effect                                                                                                                                                                                                                                                                                                      |\n|:------------------------|:-----|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n| Hearty Meal (1 serving) | 50   | A serving of this meal gives the eater 1 additional Recovery that lasts until their next respite. A creature can only benefit from 1 serving of this meal or another (like from the Learn a New Recipe project) at a time.                                                                                  |\n| Better Tackle           | 120  | You gain the following title. Angler: You have an edge on all Fishing project rolls.                                                                                                                                                                                                                        |\n| Great Meal (1 serving)  | 100  | A serving of this meal gives the eater 1 additional Recovery and 10 Temporary Stamina that lasts until the end of their next respite if it doesn’t disappear through damage first. A creature can only benefit from 1 serving of this meal or another (like from the Learn a New Recipe project) at a time. |\n| Fishing Event           | 200  | You invoke a fishing event as if you got a breakthrough.                                                                                                                                                                                                                                                    |\n| Legendary Fisher        | 300  | You gain the following title. Goldenrod: While undertaking the Fishing project, you can ignore the results of one project roll.                                                                                                                                                                             |\n",
+				"progress": {
+					"prerequisites": false,
+					"source": false,
+					"points": 0
+				}
+			},
+			{
+				"id": "LOMPLMEj7yfU2Oz8",
+				"name": "Community Service",
+				"description": "",
+				"itemPrerequisites": "",
+				"source": "",
+				"characteristic": [
+					"Might",
+					"Agility",
+					"Reason",
+					"Intuition",
+					"Presence"
+				],
+				"goal": 75,
+				"effect": "\nWhen you begin this project, you must be in a settlement or other place where people gather, and you must be in that place each time you make a project roll for the project. You can undertake several Community Service projects, each one in a different community.\n\nWhile undertaking this project, you provide help to people in need, doing odd jobs, tutoring life skills, cleaning statues, finding lost valuables, or the like. The Director determines the characteristic that applies to the project roll based on the activities you undertake. When you complete this project, you receive a random consumable of the Director’s choice as thanks for your hard work.",
+				"progress": {
+					"prerequisites": false,
+					"source": false,
+					"points": 0
 				}
 			}
 		],
