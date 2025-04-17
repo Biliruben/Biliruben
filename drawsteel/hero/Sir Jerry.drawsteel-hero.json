@@ -1,5 +1,5 @@
 {
-	"id": "J4xMSMe7EWeWMvEh",
+	"id": "fILtPxkCdFcEzVQQ",
 	"name": "Sir Jerry",
 	"settingIDs": [
 		"",
@@ -376,40 +376,44 @@
 							"count": 2,
 							"selected": [
 								{
-									"id": "kit-shining-armor",
-									"name": "Shining Armor",
-									"description": "The Shining Armor kit provides the most protection a kit can afford, providing you with the sword, shield, and armor necessary to play the prototypical knight.",
+									"id": "kit-ranger",
+									"name": "Ranger",
+									"description": "The Ranger kit outfits you with light armor and several weapons, letting you easily switch between using a melee weapon and a bow. This kit provides a good balance of bonuses to Stamina, speed, damage, and range to create a hero who is a jack-of-all-trades.",
 									"type": "",
 									"armor": [
-										"Heavy Armor",
-										"Shield"
+										"Medium Armor"
 									],
 									"weapon": [
-										"Medium Weapon"
+										"Medium Weapon",
+										"Bow"
 									],
-									"stamina": 12,
-									"speed": 0,
-									"stability": 1,
+									"stamina": 6,
+									"speed": 1,
+									"stability": 0,
 									"meleeDamage": {
-										"tier1": 2,
-										"tier2": 2,
-										"tier3": 2
+										"tier1": 1,
+										"tier2": 1,
+										"tier3": 1
 									},
-									"rangedDamage": null,
+									"rangedDamage": {
+										"tier1": 1,
+										"tier2": 1,
+										"tier3": 1
+									},
 									"meleeDistance": 0,
-									"rangedDistance": 0,
-									"disengage": 0,
+									"rangedDistance": 5,
+									"disengage": 1,
 									"features": [
 										{
-											"id": "kit-shining-armor-signature",
-											"name": "Protective Attack",
-											"description": "The strength of your assault makes it impossible for your foe to ignore you.",
+											"id": "kit-ranger-signature",
+											"name": "Hamstring Shot",
+											"description": "A well-placed shot leaves your enemy struggling to move.",
 											"type": "Ability",
 											"data": {
 												"ability": {
-													"id": "kit-shining-armor-signature",
-													"name": "Protective Attack",
-													"description": "The strength of your assault makes it impossible for your foe to ignore you.",
+													"id": "kit-ranger-signature",
+													"name": "Hamstring Shot",
+													"description": "A well-placed shot leaves your enemy struggling to move.",
 													"type": {
 														"usage": "Action",
 														"free": false,
@@ -418,14 +422,14 @@
 														"qualifiers": []
 													},
 													"keywords": [
-														"Melee",
+														"Ranged",
 														"Strike",
 														"Weapon"
 													],
 													"distance": [
 														{
-															"type": "Melee",
-															"value": 1,
+															"type": "Ranged",
+															"value": 5,
 															"value2": 0,
 															"within": 0,
 															"special": "",
@@ -443,12 +447,12 @@
 															"Agility"
 														],
 														"bonus": 0,
-														"tier1": "3 + M or A damage",
-														"tier2": "6 + M or A damage",
-														"tier3": "9 + M or A damage"
+														"tier1": "2 + M or A damage; A < [weak] slowed (save ends)",
+														"tier2": "4 + M or A damage; A < [average] slowed (save ends)",
+														"tier3": "6 + M or A damage; A < [strong] slowed (save ends)"
 													},
 													"test": null,
-													"effect": "The target is taunted (EoT).",
+													"effect": "",
 													"strained": "",
 													"alternateEffects": [],
 													"spend": [],
@@ -752,7 +756,9 @@
 							"cost": 7,
 							"minLevel": 1,
 							"count": 1,
-							"selectedIDs": []
+							"selectedIDs": [
+								"tactician-ability-10"
+							]
 						}
 					}
 				]
@@ -2005,7 +2011,7 @@
 				"selected": true
 			}
 		],
-		"level": 2,
+		"level": 3,
 		"characteristics": [
 			{
 				"characteristic": "Might",
@@ -2249,47 +2255,20 @@
 					"Caelian"
 				]
 			}
-		},
-		{
-			"id": "N6rOoptmYwnIf2ul",
-			"name": "Stamina + 14",
-			"description": "",
-			"type": "Bonus",
-			"data": {
-				"field": "Stamina",
-				"value": 14,
-				"valueCharacteristics": [],
-				"valueCharacteristicMultiplier": 1,
-				"valuePerLevel": 0,
-				"valuePerEchelon": 0
-			}
 		}
 	],
 	"state": {
-		"staminaDamage": 29,
-		"recoveriesUsed": 10,
+		"staminaDamage": 0,
+		"recoveriesUsed": 0,
 		"surges": 0,
-		"victories": 5,
-		"xp": 11,
+		"victories": 0,
+		"xp": 32,
 		"heroicResource": 0,
 		"heroTokens": 0,
-		"renown": 2,
+		"renown": 1,
 		"wealth": 2,
 		"projectPoints": 0,
-		"conditions": [
-			{
-				"id": "9p1FqvBRIENow8S7",
-				"type": "Grabbed",
-				"text": "",
-				"ends": "End of turn"
-			},
-			{
-				"id": "xRxLTUfUvVYQRzW2",
-				"type": "Taunted",
-				"text": "",
-				"ends": "End of turn"
-			}
-		],
+		"conditions": [],
 		"inventory": [
 			{
 				"id": "cb44Itir2KEUe4EY",
@@ -2583,7 +2562,8 @@
 		"staminaTemp": 0,
 		"notes": "",
 		"acted": false,
-		"defeated": false
+		"defeated": false,
+		"hidden": false
 	},
 	"abilityCustomizations": [],
 	"folder": "Jerry"
