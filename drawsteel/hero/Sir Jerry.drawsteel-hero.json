@@ -2251,20 +2251,6 @@
 			}
 		},
 		{
-			"id": "YKRzeJeuFTAU8MY0",
-			"name": "Stamina + 2",
-			"description": "",
-			"type": "Bonus",
-			"data": {
-				"field": "Stamina",
-				"value": 2,
-				"valueCharacteristics": [],
-				"valueCharacteristicMultiplier": 1,
-				"valuePerLevel": 0,
-				"valuePerEchelon": 0
-			}
-		},
-		{
 			"id": "N6rOoptmYwnIf2ul",
 			"name": "Stamina + 14",
 			"description": "",
@@ -2280,17 +2266,30 @@
 		}
 	],
 	"state": {
-		"staminaDamage": 20,
-		"recoveriesUsed": 4,
+		"staminaDamage": 29,
+		"recoveriesUsed": 10,
 		"surges": 0,
-		"victories": 2,
+		"victories": 5,
 		"xp": 11,
 		"heroicResource": 0,
 		"heroTokens": 0,
 		"renown": 2,
 		"wealth": 2,
 		"projectPoints": 0,
-		"conditions": [],
+		"conditions": [
+			{
+				"id": "9p1FqvBRIENow8S7",
+				"type": "Grabbed",
+				"text": "",
+				"ends": "End of turn"
+			},
+			{
+				"id": "xRxLTUfUvVYQRzW2",
+				"type": "Taunted",
+				"text": "",
+				"ends": "End of turn"
+			}
+		],
 		"inventory": [
 			{
 				"id": "cb44Itir2KEUe4EY",
@@ -2328,85 +2327,6 @@
 					{
 						"level": 9,
 						"features": []
-					}
-				],
-				"count": 1,
-				"customizationsByLevel": [
-					{
-						"level": 1,
-						"features": []
-					},
-					{
-						"level": 5,
-						"features": []
-					},
-					{
-						"level": 9,
-						"features": []
-					}
-				]
-			},
-			{
-				"id": "FgwTGIyDOf2gPDmg",
-				"name": "Telekinetic Bulwark",
-				"description": "An unseen force seems to draw this steel shield toward nearby creatures.",
-				"type": "Leveled Armor",
-				"keywords": [
-					"Psionic",
-					"Shield"
-				],
-				"crafting": {
-					"id": "item-telekinetic-bulwark-crafting",
-					"name": "Craft Telekinetic Bulwark",
-					"description": "Craft a Telekinetic Bulwark",
-					"itemPrerequisites": "Three ingots of steel, six crystals that resonate with psionic power",
-					"source": "Texts or lore in Variac",
-					"characteristic": [
-						"Might",
-						"Reason",
-						"Intuition"
-					],
-					"goal": 450,
-					"effect": "",
-					"progress": null
-				},
-				"effect": "",
-				"featuresByLevel": [
-					{
-						"level": 1,
-						"features": [
-							{
-								"id": "item-telekinetic-bulwark-1",
-								"name": "",
-								"description": "While you wield or carry this shield, you gain a +2 bonus to Stamina. This Stamina bonus can be gained in addition to ones granted by other treasures. Additionally, once per turn when an adjacent enemy uses an ability, you can use a free triggered action to use the Grab maneuver against that enemy. You can have any number of enemies grabbed in this way.",
-								"type": "Text",
-								"data": null
-							}
-						]
-					},
-					{
-						"level": 5,
-						"features": [
-							{
-								"id": "item-telekinetic-bulwark-5",
-								"name": "",
-								"description": "The shield’s bonus to Stamina increases to +5, and you can use the shield’s free triggered action to grab any enemy within 10 squares who uses an ability. Additionally, any enemy who uses the Escape Grab maneuver while grabbed this way takes a bane on the test.",
-								"type": "Text",
-								"data": null
-							}
-						]
-					},
-					{
-						"level": 9,
-						"features": [
-							{
-								"id": "item-telekinetic-bulwark-9",
-								"name": "",
-								"description": "The shield’s bonus to Stamina increases to +9. Additionally, you can use a maneuver to pull any number of targets the shield has grabbed up to 5 squares.",
-								"type": "Text",
-								"data": null
-							}
-						]
 					}
 				],
 				"count": 1,
@@ -2478,6 +2398,127 @@
 						"features": []
 					}
 				]
+			},
+			{
+				"id": "jdMBCjzcJoy8IiDF",
+				"name": "Telekinetic Bulwark",
+				"description": "An unseen force seems to draw this steel shield toward nearby creatures.",
+				"type": "Leveled Armor",
+				"keywords": [
+					"Psionic",
+					"Shield"
+				],
+				"crafting": {
+					"id": "item-telekinetic-bulwark-crafting",
+					"name": "Craft Telekinetic Bulwark",
+					"description": "Craft a Telekinetic Bulwark",
+					"itemPrerequisites": "Three ingots of steel, six crystals that resonate with psionic power",
+					"source": "Texts or lore in Variac",
+					"characteristic": [
+						"Might",
+						"Reason",
+						"Intuition"
+					],
+					"goal": 450,
+					"effect": "",
+					"progress": null
+				},
+				"effect": "",
+				"featuresByLevel": [
+					{
+						"level": 1,
+						"features": [
+							{
+								"id": "item-telekinetic-bulwark-1",
+								"name": "",
+								"description": "Once per turn when an adjacent enemy uses an ability, you can use a free triggered action to use the Grab maneuver against that enemy. You can have any number of enemies grabbed in this way.",
+								"type": "Text",
+								"data": null
+							},
+							{
+								"id": "item-telekinetic-bulwark-1a",
+								"name": "Stamina",
+								"description": "",
+								"type": "Bonus",
+								"data": {
+									"field": "Stamina",
+									"value": 2,
+									"valueCharacteristics": [],
+									"valueCharacteristicMultiplier": 1,
+									"valuePerLevel": 0,
+									"valuePerEchelon": 0
+								}
+							}
+						]
+					},
+					{
+						"level": 5,
+						"features": [
+							{
+								"id": "item-telekinetic-bulwark-5",
+								"name": "",
+								"description": "You can use the shield’s free triggered action to grab any enemy within 10 squares who uses an ability. Additionally, any enemy who uses the Escape Grab maneuver while grabbed this way takes a bane on the test.",
+								"type": "Text",
+								"data": null
+							},
+							{
+								"id": "item-telekinetic-bulwark-5a",
+								"name": "Stamina",
+								"description": "",
+								"type": "Bonus",
+								"data": {
+									"field": "Stamina",
+									"value": 3,
+									"valueCharacteristics": [],
+									"valueCharacteristicMultiplier": 1,
+									"valuePerLevel": 0,
+									"valuePerEchelon": 0
+								}
+							}
+						]
+					},
+					{
+						"level": 9,
+						"features": [
+							{
+								"id": "item-telekinetic-bulwark-9",
+								"name": "",
+								"description": "You can use a maneuver to pull any number of targets the shield has grabbed up to 5 squares.",
+								"type": "Text",
+								"data": null
+							},
+							{
+								"id": "item-telekinetic-bulwark-9a",
+								"name": "Stamina",
+								"description": "",
+								"type": "Bonus",
+								"data": {
+									"field": "Stamina",
+									"value": 4,
+									"valueCharacteristics": [],
+									"valueCharacteristicMultiplier": 1,
+									"valuePerLevel": 0,
+									"valuePerEchelon": 0
+								}
+							}
+						]
+					}
+				],
+				"customizationsByLevel": [
+					{
+						"level": 1,
+						"features": []
+					},
+					{
+						"level": 5,
+						"features": []
+					},
+					{
+						"level": 9,
+						"features": []
+					}
+				],
+				"count": 1
 			}
 		],
 		"projects": [
